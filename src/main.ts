@@ -16,7 +16,7 @@ async function bootstrap() {
     .setTitle('Bookme')
     .setDescription('Backend part')
     .setVersion('v1')
-    .addServer('3000', 'Local server')
+    .addServer(`${config.APP_PORT}`, 'Local server')
     .addBearerAuth(
       {
         type: 'http',
@@ -33,6 +33,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(3000);
+  await app.listen(config.APP_PORT);
 }
 bootstrap();

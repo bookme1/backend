@@ -1,10 +1,13 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { User } from 'src/user/user.entity';
 import { Book } from 'src/book/book.entity';
+import { getConfig } from 'src/config';
+
+const envConfig = getConfig();
 
 const config: TypeOrmModuleOptions = {
   type: 'postgres',
-  host: 'dpg-cmi4a8i1hbls738dgsu0-a',
+  host: envConfig.DB_HOST,
   port: 5432,
   username: process.env.DB_USERNAME || 'bookme_api_user',
   password: process.env.DB_PASSWORD || 'SjsqYSORXEekm2D9sKf8d2moibqdymUH',
