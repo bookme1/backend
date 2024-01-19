@@ -1,9 +1,9 @@
 import { Expose } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class SaveBookDto {
   @Expose()
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
   title!: string;
 
@@ -13,7 +13,12 @@ export class SaveBookDto {
   url!: string;
 
   @Expose()
+  @IsNumber()
+  @IsNotEmpty()
+  price!: number;
+
+  @Expose()
   @IsString()
   @IsNotEmpty()
-  price!: string;
+  author!: string;
 }

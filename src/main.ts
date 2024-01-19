@@ -12,12 +12,11 @@ async function bootstrap() {
   });
 
   app.enableCors();
-
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Bookme')
     .setDescription('Backend part')
     .setVersion('v1')
-    .addServer(config.APP_HOST, 'Local server')
+    .addServer('3000', 'Local server')
     .addBearerAuth(
       {
         type: 'http',
@@ -34,6 +33,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(config.APP_PORT);
+  await app.listen(3000);
 }
 bootstrap();
