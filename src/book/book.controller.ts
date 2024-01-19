@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BooksService } from './book.service';
+import { SaveBookDto } from './book.dto';
 
 @ApiTags('book')
 @Controller('api/book')
@@ -22,7 +23,7 @@ export class BooksController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('/')
-  public createUser(@Body() payload) {
-    return this.bookService.saveBook(payload);
+  public createUser(@Body() BookSaveDto: SaveBookDto) {
+    return this.bookService.saveBook(BookSaveDto);
   }
 }
