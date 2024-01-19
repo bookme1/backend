@@ -16,7 +16,7 @@ async function bootstrap() {
     .setTitle('Bookme')
     .setDescription('Backend part')
     .setVersion('v1')
-    .addServer(`${config.APP_PORT}`, 'Local server')
+    .addServer(config.APP_HOST, 'Local server')
     .addBearerAuth(
       {
         type: 'http',
