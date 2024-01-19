@@ -15,5 +15,5 @@ export class Book {
   price: number;
 
   @Column()
-  author: Array<string>;
+  author: string;
 }
