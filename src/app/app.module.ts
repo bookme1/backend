@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from 'src/user/user.entity';
 import { UsersModule } from 'src/user/user.module';
 import { Book } from 'src/book/book.entity';
+import { BooksModule } from 'src/book/book.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { Book } from 'src/book/book.entity';
       ssl: { rejectUnauthorized: false },
     }),
     UsersModule,
+    BooksModule,
   ],
 })
 export class AppModule {
