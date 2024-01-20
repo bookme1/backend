@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 

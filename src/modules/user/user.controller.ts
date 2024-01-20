@@ -7,12 +7,12 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { UsersService } from './user.service';
+import { UserService } from './user.service';
 
 @ApiTags('user')
 @Controller('api/user')
 export class UsersController {
-  constructor(private readonly userService: UsersService) {}
+  constructor(private readonly userService: UserService) {}
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Get('/')
