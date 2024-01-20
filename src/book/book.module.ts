@@ -10,4 +10,4 @@ import { Book } from './book.entity';
   controllers: [BooksController],
   exports: [TypeOrmModule],
 })
-export class UsersModule {}
+export class BooksModule {}

@@ -1,3 +1,4 @@
+import { IsNotEmpty, IsString } from 'class-validator';
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
@@ -6,14 +7,21 @@ export class Book {
   id: number;
 
   @Column()
+  @IsString()
+  @IsNotEmpty()
   title: string;
 
   @Column()
+  @IsString()
+  @IsNotEmpty()
   url: string;
 
-  @Column({ default: true })
+  @Column({ default: 0 })
+  @IsNotEmpty()
   price: number;
 
   @Column()
-  author: Array<string>;
+  @IsString()
+  @IsNotEmpty()
+  author: string;
 }

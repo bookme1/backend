@@ -12,7 +12,6 @@ async function bootstrap() {
   });
 
   app.enableCors();
-
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Bookme')
     .setDescription('Backend part')
