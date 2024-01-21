@@ -38,10 +38,11 @@ export class AuthService {
     };
   }
 
-  async signupEmail(email: string, password: string) {
+  async signupEmail(username: string, email: string, password: string) {
     try {
       const hashedPassword = await hash(password, 12);
       return await this.userService.saveUser({
+        username,
         email,
         password: hashedPassword,
       });
@@ -61,8 +62,12 @@ export class AuthService {
     const payload = { id: user.id, username: user.username };
 
     const tokens = await this.getTokens(payload);
+    const userData = await this.userService.removePasswordFromUser(user);
 
-    return tokens;
+    return {
+      tokens,
+      userData,
+    };
   }
 
   async getTokens(payload: { id: number; username: string | null }) {
@@ -80,12 +85,5 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
-  }
-
-  async getResetToken(payload: { id: number; username: string | null }) {
-    return await this.jwtService.signAsync(payload, {
-      secret: config.JWT_RESET_SECRET,
-      expiresIn: config.JWT_RESET_EXPIRES,
-    });
   }
 }

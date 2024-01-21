@@ -1,23 +1,30 @@
 import {
+  Request,
   Body,
   Controller,
   Get,
   Post,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
+import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
+import { constants } from 'src/config/constants';
 
 @ApiTags('user')
 @Controller('api/user')
 export class UsersController {
   constructor(private readonly userService: UserService) {}
 
-  @UsePipes(new ValidationPipe({ transform: true }))
-  @Get('/')
-  public getAll() {
-    return this.userService.findAll();
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @Get()
+  getUserData(@Request() req: any) {
+    const { id: userId } = req.user;
+
+    return this.userService.getUserData(userId);
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))

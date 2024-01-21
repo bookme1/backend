@@ -15,6 +15,10 @@ export class EmailLoginDto {
 
 export class EmailSignupDto {
   @Expose()
+  @IsString()
+  username!: string;
+
+  @Expose()
   @IsEmail()
   email!: string;
 

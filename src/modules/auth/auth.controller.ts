@@ -32,6 +32,7 @@ export class AuthController {
   @Post('email/signup')
   public signupEmail(@Body() signupEmailDto: EmailSignupDto) {
     return this.authService.signupEmail(
+      signupEmailDto.username,
       signupEmailDto.email,
       signupEmailDto.password,
     );
