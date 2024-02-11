@@ -27,6 +27,11 @@ export class UsersController {
     return this.userService.getUserData(userId);
   }
 
+  @Get('bookkkkk')
+  extractBook() {
+    return this.userService.extract();
+  }
+
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('/')
   public createUser(@Body() payload) {
