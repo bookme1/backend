@@ -25,4 +25,17 @@ export class User {
     transformer: encrypt,
   })
   password!: string | null;
+
+  @Column('varchar', {
+    unique: true,
+    nullable: true,
+  })
+  googleID!: string | null;
+
+  @Column('varchar', {
+    default: 0,
+    unique: false,
+    nullable: true,
+  })
+  role!: number | null;
 }

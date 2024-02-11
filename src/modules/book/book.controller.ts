@@ -32,6 +32,12 @@ export class BooksController {
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
+  @Get('/filter')
+  public getFiltered() {
+    return 'Endpoint in process...';
+  }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
   @Get(':id')
   public async getById(@Param('id') id: string) {
     try {

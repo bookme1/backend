@@ -7,6 +7,9 @@ export class Book {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ default: '' })
+  art!: string;
+
   @Column()
   @IsString()
   @IsNotEmpty()
@@ -14,15 +17,28 @@ export class Book {
 
   @Column()
   @IsString()
-  @IsNotEmpty()
-  url: string;
+  url!: string;
 
   @Column({ default: 0 })
-  @IsNotEmpty()
-  price: number;
+  price!: number;
 
-  @Column()
+  @Column({ default: 0 })
+  pages!: number;
+
+  @Column({ default: 'ua' })
+  lang!: string;
+
+  @Column({ default: '' })
+  desc!: string;
+
+  @Column({ default: '' })
+  cover!: string;
+
+  @Column({ default: '' })
   @IsString()
-  @IsNotEmpty()
-  author: string;
+  author!: string;
+
+  @Column({ default: '' })
+  @IsString()
+  pub!: string;
 }
