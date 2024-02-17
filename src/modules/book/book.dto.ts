@@ -2,6 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
+export enum Filter {
+  pop,
+  low,
+  high,
+}
+
 export class SaveBookDto {
   @Expose()
   @IsString()
@@ -56,4 +62,43 @@ export class FindBookDto {
   @IsOptional()
   @IsString()
   value!: string;
+}
+
+export class FilterBookDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  filter!: Filter;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Expose()
+  @IsString()
+  cover!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Expose()
+  @IsString()
+  author!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Expose()
+  @IsString()
+  lang!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Expose()
+  @IsString()
+  pub!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  minPrice!: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  maxPrice!: number;
 }

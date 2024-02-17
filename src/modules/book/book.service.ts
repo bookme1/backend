@@ -2,6 +2,17 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
+import { Filter } from './book.dto';
+
+interface IFilter {
+  filter: Filter;
+  cover: string;
+  author: string;
+  lang: string;
+  pub: string;
+  minPrice: number;
+  maxPrice: number;
+}
 
 @Injectable()
 export class BooksService {
@@ -30,6 +41,42 @@ export class BooksService {
       throw new NotFoundException(`Book with ${type}: ${value} not found`);
     }
     return books;
+  }
+
+  async filterItems(params: IFilter): Promise<Book[]> {
+    try {
+      const queryBuilder = this.booksRepository.createQueryBuilder('book');
+
+      if (params.author) {
+        queryBuilder.andWhere('book.author = :author', {
+          author: params.author,
+        });
+      }
+
+      if (params.cover) {
+        queryBuilder.andWhere('book.cover = :cover', { cover: params.cover });
+      }
+
+      if (params.lang) {
+        queryBuilder.andWhere('book.lang = :lang', { lang: params.lang });
+      }
+
+      if (params.pub) {
+        queryBuilder.andWhere('book.pub = :pub', { pub: params.pub });
+      }
+
+      if (params.minPrice !== undefined && params.maxPrice !== undefined) {
+        queryBuilder.andWhere('book.price BETWEEN :minPrice AND :maxPrice', {
+          minPrice: params.minPrice,
+          maxPrice: params.maxPrice,
+        });
+      }
+
+      const filteredBooks = await queryBuilder.getMany();
+      return filteredBooks;
+    } catch (error) {
+      throw new Error(`Error filtering books: ${error.message}`);
+    }
   }
 
   async saveBook(book): Promise<Book> {

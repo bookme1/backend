@@ -14,7 +14,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BooksService } from './book.service';
-import { EditBookDto, FindBookDto, SaveBookDto } from './book.dto';
+import {
+  EditBookDto,
+  FilterBookDto,
+  FindBookDto,
+  SaveBookDto,
+} from './book.dto';
 
 @ApiTags('book')
 @Controller('api/book')
@@ -33,8 +38,8 @@ export class BooksController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Get('/filter')
-  public getFiltered() {
-    return 'Endpoint in process...';
+  public getFiltered(@Query() booksFilterDto: FilterBookDto) {
+    return this.bookService.filterItems(booksFilterDto);
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
