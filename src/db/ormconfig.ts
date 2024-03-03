@@ -1,6 +1,6 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { User } from 'src/user/user.entity';
-import { Book } from 'src/book/book.entity';
+import { User } from './User';
+import { Book } from './Book';
 import { getConfig } from 'src/config';
 
 const envConfig = getConfig();
@@ -15,6 +15,7 @@ const config: TypeOrmModuleOptions = {
   entities: [User, Book],
   synchronize: true,
   ssl: { rejectUnauthorized: false },
+  migrations: [`${__dirname}/**/migration/*.{ts,js}`],
 };
 
 export default config;
