@@ -13,6 +13,18 @@ export class EmailLoginDto {
   password!: string;
 }
 
+export class EmailGoogleDto {
+  @Expose()
+  @IsEmail()
+  @IsNotEmpty()
+  email!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+}
+
 export class EmailSignupDto {
   @Expose()
   @IsString()

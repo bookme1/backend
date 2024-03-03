@@ -38,6 +38,40 @@ export class AuthService {
     };
   }
 
+  async googleLogin(email: string, name: string) {
+    let user = await this.userService.getByEmail(email);
+    if (!user) {
+      this.googleSignup(name, email);
+      user = await this.userService.getByEmail(email);
+    }
+    const payload = {
+      id: user.id,
+      username: user.username,
+    };
+    const tokens = await this.getTokens(payload);
+
+    return {
+      tokens,
+      user: this.userService.removePasswordFromUser(user),
+    };
+  }
+
+  async googleSignup(username: string, email: string) {
+    try {
+      return await this.userService.saveUser({
+        username,
+        email,
+      });
+    } catch (error) {
+      console.error('Error signing up with email:', error);
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: 'Failed to sign up with email.',
+        error: error.message,
+      });
+    }
+  }
+
   async signupEmail(username: string, email: string, password: string) {
     try {
       const hashedPassword = await hash(password, 12);

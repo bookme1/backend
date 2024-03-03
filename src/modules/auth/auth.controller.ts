@@ -9,7 +9,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { EmailLoginDto, EmailSignupDto } from 'src/modules/auth/auth.dto';
+import {
+  EmailGoogleDto,
+  EmailLoginDto,
+  EmailSignupDto,
+} from 'src/modules/auth/auth.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { constants } from 'src/config/constants';
 import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
@@ -25,6 +29,15 @@ export class AuthController {
     return this.authService.loginEmail(
       loginEmailDto.email,
       loginEmailDto.password,
+    );
+  }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('email/google')
+  public googleLogin(@Body() googleEmailDto: EmailGoogleDto) {
+    return this.authService.googleLogin(
+      googleEmailDto.email,
+      googleEmailDto.name,
     );
   }
 
