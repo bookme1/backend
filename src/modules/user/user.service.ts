@@ -13,10 +13,32 @@ export class UserService {
   findAll(): Promise<User[]> {
     return this.repository.find();
   }
+
   async getUserData(userId: number) {
     const user = await this.getById(userId);
 
     return { ...this.removePasswordFromUser(user) };
+  }
+
+  async getUserFavBooks(userId: number) {
+    const user = await this.getById(userId);
+
+    return user.favBooks;
+  }
+
+  async addUserFavBook(userId: number, bookId: string) {
+    const user = await this.getById(userId);
+    user.favBooks.push(bookId);
+    this.repository.update(user.id, user);
+    return { message: 'successfully', bookId };
+  }
+
+  async removeUserFavBook(userId: number, bookId: string) {
+    const user = await this.getById(userId);
+    const index = user.favBooks.findIndex((val) => val == bookId);
+    user.favBooks.splice(index, 1);
+    this.repository.update(user.id, user);
+    return user.favBooks;
   }
 
   getById(id: number) {

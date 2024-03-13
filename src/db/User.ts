@@ -32,4 +32,7 @@ export class User {
     nullable: true,
   })
   role!: number | null;
+
+  @Column('varchar', { array: true, default: [], nullable: false })
+  favBooks: string[];
 }
