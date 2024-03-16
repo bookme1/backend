@@ -8,6 +8,7 @@ import {
   UsePipes,
   ValidationPipe,
   Delete,
+  Param,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
@@ -54,10 +55,10 @@ export class UsersController {
 
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth(constants.authPatternName)
-  @Delete('/favorite')
-  removeUserFavBook(@Request() req: any, @Body() favBookDto: bookIdDto) {
+  @Delete('/favorite/:id')
+  removeUserFavBook(@Request() req: any, @Param('id') bookId: string) {
     const { id: userId } = req.user;
 
-    return this.userService.removeUserFavBook(userId, favBookDto.bookId);
+    return this.userService.removeUserFavBook(userId, bookId);
   }
 }
