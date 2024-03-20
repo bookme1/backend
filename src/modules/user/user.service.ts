@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/db/User';
@@ -28,6 +28,9 @@ export class UserService {
 
   async addUserFavBook(userId: number, bookId: string) {
     const user = await this.getById(userId);
+    if (user.favBooks.includes(bookId)) {
+      return new BadRequestException();
+    }
     user.favBooks.push(bookId);
     this.repository.update(user.id, user);
     return { message: 'successfully', bookId };
