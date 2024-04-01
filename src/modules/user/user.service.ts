@@ -44,6 +44,30 @@ export class UserService {
     return user.favBooks;
   }
 
+  async getUserCartBooks(userId: number) {
+    const user = await this.getById(userId);
+
+    return user.cartBooks;
+  }
+
+  async addUserCartBook(userId: number, bookId: string) {
+    const user = await this.getById(userId);
+    if (user.cartBooks.includes(bookId)) {
+      return new BadRequestException();
+    }
+    user.cartBooks.push(bookId);
+    this.repository.update(user.id, user);
+    return { message: 'successfully', bookId };
+  }
+
+  async removeUserCartBook(userId: number, bookId: string) {
+    const user = await this.getById(userId);
+    const index = user.cartBooks.findIndex((val) => val == bookId);
+    user.cartBooks.splice(index, 1);
+    this.repository.update(user.id, user);
+    return user.cartBooks;
+  }
+
   getById(id: number) {
     return this.repository.findOne({ where: { id } });
   }

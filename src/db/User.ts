@@ -35,4 +35,7 @@ export class User {
 
   @Column('varchar', { array: true, default: [], nullable: false })
   favBooks: string[];
+
+  @Column('varchar', { array: true, default: [], nullable: false })
+  cartBooks: string[];
 }
