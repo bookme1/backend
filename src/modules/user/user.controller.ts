@@ -61,4 +61,30 @@ export class UsersController {
 
     return this.userService.removeUserFavBook(userId, bookId);
   }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @Get('/cart')
+  getUserCartBooks(@Request() req: any) {
+    const { id: userId } = req.user;
+
+    return this.userService.getUserFavBooks(userId);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @Post('/cart')
+  addUserCartBook(@Request() req: any, @Body() favBookDto: bookIdDto) {
+    const { id: userId } = req.user;
+    return this.userService.addUserFavBook(userId, favBookDto.bookId);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @Delete('/cart/:id')
+  removeUserCartBook(@Request() req: any, @Param('id') bookId: string) {
+    const { id: userId } = req.user;
+
+    return this.userService.removeUserFavBook(userId, bookId);
+  }
 }
