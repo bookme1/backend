@@ -75,6 +75,16 @@ export class BooksController {
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/updateBooksFromServer')
+  public async updateBoooksFromArthouse() {
+    try {
+      return await this.bookService.updateBooksFromArthouse();
+    } catch (error) {
+      throw new error();
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
   @Patch(':id')
   public async editBook(
     @Body() bookEditDto: EditBookDto,

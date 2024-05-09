@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
 import { Filter } from './book.dto';
+import axios from 'axios';
+import { createHash, randomBytes } from 'crypto';
 
 interface IFilter {
   filter: Filter;
@@ -41,6 +43,32 @@ export class BooksService {
       throw new NotFoundException(`Book with ${type}: ${value} not found`);
     }
     return books;
+  }
+
+  async updateBooksFromArthouse() {
+    fetch('https://platform.elibri.com.ua/api/v1/queues/meta/pop', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Basic ' + btoa('bookme:64db6ffd98a76c2b879c'),
+      },
+      body: JSON.stringify({
+        count: 1,
+        testing: 1,
+      }),
+    })
+      .then((response) => {
+        //if (!response.ok) {
+        //throw new Error('Network response was not ok');
+        //}
+        return response.text();
+      })
+      .then((data) => {
+        console.log('Response:', data);
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
   }
 
   async filterItems(params: IFilter): Promise<Book[]> {
