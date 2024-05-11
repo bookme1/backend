@@ -78,9 +78,12 @@ export class BooksController {
   @Post('/updateBooksFromServer')
   public async updateBoooksFromArthouse() {
     try {
-      return await this.bookService.updateBooksFromArthouse();
+      const response = await this.bookService.updateBooksFromArthouse();
+      console.log('Response:', response);
+      return response;
     } catch (error) {
-      throw new error();
+      console.error('Error:', error);
+      throw error;
     }
   }
 
