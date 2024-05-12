@@ -166,6 +166,7 @@ export class BooksService {
           const collateralDetail = serviceBookObject.CollateralDetail;
           const productSupply = serviceBookObject.ProductSupply;
           const titleDetail = descriptiveDetail.TitleDetail;
+          const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text;
           const titleText =
             descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
               ?._text ||
@@ -182,6 +183,7 @@ export class BooksService {
             const updBook = {
               referenceNumber: recordReference._text,
               art: '',
+              pages: pageCount || 0,
               title: artificialTitle,
               url: Array.isArray(collateralDetail.SupportingResource)
                 ? collateralDetail.SupportingResource[0].ResourceVersion
