@@ -117,4 +117,17 @@ export class BooksController {
   public removeBook(@Param('id') id: string) {
     return this.bookService.remove(id);
   }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/checkout')
+  public async makeCheckout(@Param('amount') amount: number) {
+    try {
+      const response = await this.bookService.testCheckout(amount);
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
+  }
 }

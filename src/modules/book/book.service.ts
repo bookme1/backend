@@ -6,6 +6,7 @@ import { Filter } from './book.dto';
 import { request } from 'https';
 import { createHash, randomBytes } from 'crypto';
 import * as convert from 'xml-js';
+import LiqPay from 'liqpay';
 
 interface IFilter {
   filter: Filter;
@@ -165,7 +166,7 @@ export class BooksService {
           const publishingDetail = serviceBookObject.PublishingDetail;
           const collateralDetail = serviceBookObject.CollateralDetail;
           const productSupply = serviceBookObject.ProductSupply;
-          const titleDetail = descriptiveDetail.TitleDetail;
+          //const titleDetail = descriptiveDetail.TitleDetail;
           const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text;
           const titleText =
             descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
@@ -175,9 +176,20 @@ export class BooksService {
             descriptiveDetail?.TitleDetail?.TitleElement?.[0]?.TitleText
               ?._text ||
             descriptiveDetail?.TitleDetail?.TitleElement?.TitleText?._text;
-          const personName =
-            serviceBookObject?.DescriptiveDetail?.Contributor?.[0]?.PersonName;
-          const author = personName?._text ?? '';
+          const personName = [];
+          if (descriptiveDetail.Contributor.length) {
+            descriptiveDetail.Contributor.forEach((el) => {
+              if (el.length) {
+                if (el[0].PersonName._text)
+                  personName.push(el[0].PersonName._text);
+              } else {
+                if (el.PersonName._text) personName.push(el.PersonName._text);
+              }
+            });
+          } else {
+            personName.push(descriptiveDetail.Contributor.PersonName._text);
+          }
+          const author = personName.join(', ');
           const artificialTitle = titleText;
           try {
             const updBook = {
@@ -223,7 +235,7 @@ export class BooksService {
             console.error(error);
           }
         }
-      } while (dumpedBooks.length === 30 && dumpedQuantity <= 200);
+      } while (dumpedBooks.length === 30 && dumpedQuantity <= 300);
       return { message: 'Dump succeed', dumpedQuantity };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
@@ -282,5 +294,22 @@ export class BooksService {
 
   async remove(id: string): Promise<void> {
     await this.booksRepository.delete(id);
+  }
+
+  async testCheckout(amount) {
+    const liqpay = new LiqPay(
+      'sandbox_i70460379180',
+      'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW',
+    );
+    const html = liqpay.cnb_form({
+      action: 'pay',
+      amount,
+      currency: 'UAH',
+      description: 'Pay for books',
+      order_id: 'test_order_id_1',
+      version: '3',
+    });
+
+    return html;
   }
 }
