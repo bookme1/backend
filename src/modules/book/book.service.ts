@@ -148,8 +148,8 @@ export class BooksService {
   async updateBooksFromArthouse() {
     try {
       let dumpedBooks;
-      let dumpedQuantity = 0;
       this.booksRepository.clear();
+      let dumpedQuantity = 0;
       do {
         dumpedBooks = await this.makeDigestRequest(
           'platform.elibri.com.ua',
@@ -166,7 +166,6 @@ export class BooksService {
           const publishingDetail = serviceBookObject.PublishingDetail;
           const collateralDetail = serviceBookObject.CollateralDetail;
           const productSupply = serviceBookObject.ProductSupply;
-          //const titleDetail = descriptiveDetail.TitleDetail;
           const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text;
           const titleText =
             descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
@@ -176,8 +175,14 @@ export class BooksService {
             descriptiveDetail?.TitleDetail?.TitleElement?.[0]?.TitleText
               ?._text ||
             descriptiveDetail?.TitleDetail?.TitleElement?.TitleText?._text;
+          const formats = this.addFormats(
+            serviceBookObject.ProductionDetail.ProductionManifest.BodyManifest
+              .BodyResource,
+          );
           const personName = [];
-          if (descriptiveDetail.Contributor.length) {
+          if (descriptiveDetail.NoContributor) {
+            personName.push('Без автора');
+          } else if (descriptiveDetail.Contributor.length) {
             descriptiveDetail.Contributor.forEach((el) => {
               if (el.length) {
                 if (el[0].PersonName._text)
@@ -187,12 +192,14 @@ export class BooksService {
               }
             });
           } else {
-            personName.push(descriptiveDetail.Contributor.PersonName._text);
+            if (!descriptiveDetail.Contributor.UnnamedPersons) {
+              personName.push(descriptiveDetail.Contributor.PersonName._text);
+            }
           }
           const author = personName.join(', ');
           const artificialTitle = titleText;
           try {
-            const updBook = {
+            let updBook = {
               referenceNumber: recordReference._text,
               art: '',
               pages: pageCount || 0,
@@ -217,26 +224,19 @@ export class BooksService {
               genre: Array.isArray(descriptiveDetail.Subject)
                 ? descriptiveDetail.Subject[0].SubjectHeadingText._text
                 : descriptiveDetail.Subject.SubjectHeadingText._text,
-              formatMobi: Array.isArray(
-                serviceBookObject.ProductionDetail.ProductionManifest
-                  .BodyManifest.BodyResource,
-              )
-                ? serviceBookObject.ProductionDetail.ProductionManifest
-                    .BodyManifest.BodyResource[0].ResourceFileLink._text
-                : serviceBookObject.ProductionDetail.ProductionManifest
-                    .BodyManifest.BodyResource.ResourceFileLink._text,
+              formatMobi: '',
               formatPdf: '',
               formatEpub: '',
             };
+            updBook = Object.assign(updBook, formats);
             this.saveBook(updBook);
             dumpedQuantity += 1;
           } catch (error) {
-            console.log('Error occured by db dump');
             console.error(error);
           }
         }
-      } while (dumpedBooks.length === 30 && dumpedQuantity <= 300);
-      return { message: 'Dump succeed', dumpedQuantity };
+      } while ((dumpedBooks.length = 30 || dumpedQuantity <= 500));
+      return { message: 'Dump succeed!', quantity: dumpedQuantity };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
       throw error; // Rethrow the error to handle it upstream
@@ -311,5 +311,34 @@ export class BooksService {
     });
 
     return html;
+  }
+
+  public addFormats(BodyResource: any) {
+    if (!BodyResource.length) {
+      return this.renderFormat(BodyResource.ResourceFileLink);
+    } else {
+      let dateToReturn = {};
+      for (let i = 0; i < BodyResource.length; i++) {
+        const format = this.renderFormat(BodyResource[i].ResourceFileLink);
+        dateToReturn = Object.assign(format, dateToReturn);
+      }
+      return dateToReturn;
+    }
+  }
+
+  public renderFormat(value: any) {
+    if (!value || !value._text) {
+      return {};
+    }
+    const valueFormat = value._text.split('.').pop();
+    if (valueFormat == 'mobi') {
+      return { formatMobi: value._text };
+    } else if (valueFormat == 'pdf') {
+      return { formatPdf: value._text };
+    } else if (valueFormat == 'epub') {
+      return { formatEpub: value._text };
+    } else {
+      return { formatPdf: 'Невірний формат' };
+    }
   }
 }
