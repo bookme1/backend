@@ -6,7 +6,6 @@ import { Filter } from './book.dto';
 import { request } from 'https';
 import { createHash, randomBytes } from 'crypto';
 import * as convert from 'xml-js';
-import LiqPay from 'liqpay';
 
 interface IFilter {
   filter: Filter;
@@ -296,21 +295,31 @@ export class BooksService {
     await this.booksRepository.delete(id);
   }
 
-  async testCheckout(amount) {
-    const liqpay = new LiqPay(
-      'sandbox_i70460379180',
-      'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW',
-    );
-    const html = liqpay.cnb_form({
+  generateSignature(params: any): { data: string; signature: string } {
+    const data = Buffer.from(JSON.stringify(params)).toString('base64');
+    const signature = createHash('sha1')
+      .update(
+        'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW' +
+          data +
+          'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW',
+      )
+      .digest('base64');
+    return { data, signature };
+  }
+
+  testCheckout(amount: number): { data: string; signature: string } {
+    const params = {
+      public_key: 'sandbox_i70460379180',
+      version: '3',
       action: 'pay',
-      amount,
+      amount: amount,
       currency: 'UAH',
       description: 'Pay for books',
-      order_id: 'test_order_id_1',
-      version: '3',
-    });
+      order_id: `order_id_${Date.now()}`,
+      sandbox: 1,
+    };
 
-    return html;
+    return this.generateSignature(params);
   }
 
   public addFormats(BodyResource: any) {

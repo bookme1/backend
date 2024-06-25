@@ -120,7 +120,7 @@ export class BooksController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('/checkout')
-  public async makeCheckout(@Param('amount') amount: number) {
+  public async makeCheckout(@Query('amount') amount: number) {
     try {
       const response = await this.bookService.testCheckout(amount);
       console.log('Response:', response);
