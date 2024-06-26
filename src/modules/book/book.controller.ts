@@ -75,6 +75,19 @@ export class BooksController {
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/updateBooksFromServer')
+  public async updateBoooksFromArthouse() {
+    try {
+      const response = await this.bookService.updateBooksFromArthouse();
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
   @Patch(':id')
   public async editBook(
     @Body() bookEditDto: EditBookDto,
@@ -103,5 +116,18 @@ export class BooksController {
   @Delete(':id')
   public removeBook(@Param('id') id: string) {
     return this.bookService.remove(id);
+  }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/checkout')
+  public async makeCheckout(@Query('amount') amount: number) {
+    try {
+      const response = await this.bookService.testCheckout(amount);
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
   }
 }

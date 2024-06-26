@@ -1,11 +1,15 @@
 import { IsNotEmpty, IsString } from 'class-validator';
-import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
-@Unique(['title'])
+//@Unique(['title'])
 export class Book {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ default: '' })
+  @IsString()
+  referenceNumber: string;
 
   @Column({ default: '' })
   art!: string;
@@ -19,8 +23,8 @@ export class Book {
   @IsString()
   url!: string;
 
-  @Column({ default: 0 })
-  price!: number;
+  @Column({ default: '' })
+  price!: string;
 
   @Column({ default: 0 })
   pages!: number;
@@ -32,13 +36,30 @@ export class Book {
   desc!: string;
 
   @Column({ default: '' })
-  cover!: string;
-
-  @Column({ default: '' })
   @IsString()
   author!: string;
 
   @Column({ default: '' })
   @IsString()
   pub!: string;
+
+  @Column({ default: '' })
+  @IsString()
+  pubDate!: string;
+
+  @Column({ default: '' })
+  @IsString()
+  genre!: string;
+
+  @Column({ default: '' })
+  @IsString()
+  formatMobi!: string;
+
+  @Column({ default: '' })
+  @IsString()
+  formatPdf!: string;
+
+  @Column({ default: '' })
+  @IsString()
+  formatEpub!: string;
 }
