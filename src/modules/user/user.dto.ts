@@ -2,8 +2,8 @@ import { Expose } from 'class-transformer';
 import { IsNotEmpty } from 'class-validator';
 
 export enum BookType {
-  Fav,
-  Cart,
+  Fav = 'Fav',
+  Cart = 'Cart',
 }
 
 export class GetUserBooksDTO {

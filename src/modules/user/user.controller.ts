@@ -8,12 +8,13 @@ import {
   UsePipes,
   ValidationPipe,
   Delete,
+  Param,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
-import { GetUserBooksDTO, UserBooksDTO } from './user.dto';
+import { BookType, UserBooksDTO } from './user.dto';
 
 @ApiTags('user')
 @Controller('api/user')
@@ -37,9 +38,9 @@ export class UsersController {
 
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth(constants.authPatternName)
-  @Get('/books')
-  getUserBooks(@Request() req: any, @Body() userBooksDTO: GetUserBooksDTO) {
-    return this.userService.getUserBooks(userBooksDTO.type, req.user.id);
+  @Get('/books/:type')
+  getUserBooks(@Request() req: any, @Param('type') type: BookType) {
+    return this.userService.getUserBooks(type, req.user.id);
   }
 
   @UseGuards(AccessTokenGuard)
@@ -63,4 +64,11 @@ export class UsersController {
       userBooksDTO.bookId,
     );
   }
+}
+function Params(): (
+  target: UsersController,
+  propertyKey: 'getUserBooks',
+  parameterIndex: 1,
+) => void {
+  throw new Error('Function not implemented.');
 }
