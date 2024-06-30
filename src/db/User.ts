@@ -1,10 +1,17 @@
 import { encrypt } from 'src/helpers/encryption';
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Role } from './types';
 
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;
+
+  @Column('boolean', {
+    default: false,
+    nullable: false,
+  })
+  verified: boolean; // If user's email verified or not
 
   @Column('varchar', {
     unique: false,
@@ -27,15 +34,18 @@ export class User {
   password!: string | null;
 
   @Column('varchar', {
-    default: 0,
+    default: Role.User,
     unique: false,
-    nullable: true,
+    nullable: false,
   })
-  role!: number | null;
+  role: Role; // Role to manage restrictions
 
   @Column('varchar', { array: true, default: [], nullable: false })
-  favBooks: string[];
+  fav: string[]; // books in favorite
 
   @Column('varchar', { array: true, default: [], nullable: false })
-  cartBooks: string[];
+  cart: string[]; // books in cart
+
+  @Column('varchar', { array: true, default: [], nullable: false })
+  books: string[]; // owned books
 }

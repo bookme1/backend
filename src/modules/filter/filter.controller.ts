@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FilterService } from './filter.service';
 
@@ -9,13 +9,13 @@ export class FilterController {
 
   //Get filters
   @Get('')
-  public getAll() {
-    // return this.filterService.getFilters();
+  public getFilters() {
+    return this.filterService.getFilters();
   }
 
-  //Update filters
-  @Post('')
-  public setAll() {
-    // return this.filterService.setFilters();
-  }
+  //Get genres
+  // @Get('/genre')
+  // public getGenres() {
+  //   return this.filterService.getGenres();
+  // }
 }
