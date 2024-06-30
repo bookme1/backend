@@ -10,14 +10,15 @@ export class FilterService {
     private booksRepository: Repository<Filter>,
   ) {}
 
-  // async getFilters() {
-  //   const book = await this.booksRepository.findOne({ where: { id} });
+  async getFilters() {
+    const books = await this.booksRepository;
 
-  //   return book;
-  // }
-  // async setFilters() {
+    return books;
+  }
+
+  // async getGenres() {
   //   const book = await this.booksRepository.findOne({ where: { id } });
 
-  // return book;
+  //   return book;
   // }
 }

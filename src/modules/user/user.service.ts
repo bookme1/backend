@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/db/User';
+import { BookType } from './user.dto';
 
 @Injectable()
 export class UserService {
@@ -20,52 +21,49 @@ export class UserService {
     return { ...this.removePasswordFromUser(user) };
   }
 
-  async getUserFavBooks(userId: number) {
+  async getUserBooks(type: BookType, userId: number) {
     const user = await this.getById(userId);
+    if (type == BookType.Cart) return user.cart;
+    else if (type == BookType.Fav) return user.fav;
 
-    return user.favBooks;
+    return new BadRequestException();
   }
 
-  async addUserFavBook(userId: number, bookId: string) {
+  async addUserBook(type: BookType, userId: number, bookId: string) {
     const user = await this.getById(userId);
-    if (user.favBooks.includes(bookId)) {
-      return new BadRequestException();
+
+    if (type == BookType.Fav) {
+      if (user.fav.includes(bookId)) {
+        return new BadRequestException();
+      }
+      user.fav.push(bookId);
+    } else if (type == BookType.Cart) {
+      if (user.cart.includes(bookId)) {
+        return new BadRequestException();
+      }
+      user.cart.push(bookId);
     }
-    user.favBooks.push(bookId);
+
     this.repository.update(user.id, user);
     return { message: 'successfully', bookId };
   }
 
-  async removeUserFavBook(userId: number, bookId: string) {
-    const user = await this.getById(userId);
-    const index = user.favBooks.findIndex((val) => val == bookId);
-    user.favBooks.splice(index, 1);
-    this.repository.update(user.id, user);
-    return user.favBooks;
-  }
-
-  async getUserCartBooks(userId: number) {
+  async removeUserBook(type: BookType, userId: number, bookId: string) {
     const user = await this.getById(userId);
 
-    return user.cartBooks;
-  }
-
-  async addUserCartBook(userId: number, bookId: string) {
-    const user = await this.getById(userId);
-    if (user.cartBooks.includes(bookId)) {
-      return new BadRequestException();
+    if (type == BookType.Fav) {
+      const index = user.fav.findIndex((val) => val == bookId);
+      user.fav.splice(index, 1);
+      this.repository.update(user.id, user);
+      return user.fav;
+    } else if (type == BookType.Cart) {
+      const index = user.cart.findIndex((val) => val == bookId);
+      user.cart.splice(index, 1);
+      this.repository.update(user.id, user);
+      return user.cart;
     }
-    user.cartBooks.push(bookId);
-    this.repository.update(user.id, user);
-    return { message: 'successfully', bookId };
-  }
 
-  async removeUserCartBook(userId: number, bookId: string) {
-    const user = await this.getById(userId);
-    const index = user.cartBooks.findIndex((val) => val == bookId);
-    user.cartBooks.splice(index, 1);
-    this.repository.update(user.id, user);
-    return user.cartBooks;
+    return new BadRequestException();
   }
 
   getById(id: number) {

@@ -1,8 +1,23 @@
 import { Expose } from 'class-transformer';
 import { IsNotEmpty } from 'class-validator';
 
-export class bookIdDto {
+export enum BookType {
+  Fav,
+  Cart,
+}
+
+export class GetUserBooksDTO {
   @Expose()
   @IsNotEmpty()
-  bookId!: string;
+  type: BookType;
+}
+
+export class UserBooksDTO {
+  @Expose()
+  @IsNotEmpty()
+  bookId: string;
+
+  @Expose()
+  @IsNotEmpty()
+  type: BookType;
 }
