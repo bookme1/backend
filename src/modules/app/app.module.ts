@@ -6,6 +6,7 @@ import { UsersModule } from 'src/modules/user/user.module';
 import { BooksModule } from 'src/modules/book/book.module';
 import config from 'src/db/ormconfig';
 import { AuthModule } from '../auth/auth.module';
+import { FilterModule } from '../filter/filter.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { AuthModule } from '../auth/auth.module';
     UsersModule,
     BooksModule,
     AuthModule,
+    FilterModule,
   ],
 })
 export class AppModule {
