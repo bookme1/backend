@@ -65,10 +65,3 @@ export class UsersController {
     );
   }
 }
-function Params(): (
-  target: UsersController,
-  propertyKey: 'getUserBooks',
-  parameterIndex: 1,
-) => void {
-  throw new Error('Function not implemented.');
-}
