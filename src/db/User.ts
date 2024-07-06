@@ -17,7 +17,7 @@ export class User {
     unique: false,
     nullable: true,
   })
-  username!: string | null;
+  username: string;
 
   @Column('varchar', {
     nullable: true,
@@ -35,10 +35,23 @@ export class User {
 
   @Column('varchar', {
     default: Role.User,
-    unique: false,
     nullable: false,
   })
   role: Role; // Role to manage restrictions
+
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP', // Default to current timestamp
+    nullable: false,
+  })
+  lastActiveAt: Date;
+
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP', // Default to current timestamp
+    nullable: false,
+  })
+  createdAt: Date;
 
   @Column('varchar', { array: true, default: [], nullable: false })
   fav: string[]; // books in favorite
