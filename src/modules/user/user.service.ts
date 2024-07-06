@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/db/User';
@@ -18,11 +22,17 @@ export class UserService {
   async getUserData(userId: number) {
     const user = await this.getById(userId);
 
+    // Set last user activity
+    await this.updateLoggedDate(userId, '');
+
     return { ...this.removePasswordFromUser(user) };
   }
 
   async getUserBooks(type: BookType, userId: number) {
     const user = await this.getById(userId);
+    // Set last user activity
+    await this.updateLoggedDate(userId, '');
+
     if (type == BookType.Cart) return user.cart;
     else if (type == BookType.Fav) return user.fav;
 
@@ -31,6 +41,9 @@ export class UserService {
 
   async addUserBook(type: BookType, userId: number, bookId: string) {
     const user = await this.getById(userId);
+
+    // Set last user activity
+    await this.updateLoggedDate(userId, '');
 
     if (type == BookType.Fav) {
       if (user.fav.includes(bookId)) {
@@ -51,6 +64,9 @@ export class UserService {
   async removeUserBook(type: BookType, userId: number, bookId: string) {
     const user = await this.getById(userId);
 
+    // Set last user activity
+    await this.updateLoggedDate(userId, '');
+
     if (type == BookType.Fav) {
       const index = user.fav.findIndex((val) => val == bookId);
       user.fav.splice(index, 1);
@@ -66,9 +82,14 @@ export class UserService {
     return new BadRequestException();
   }
 
-  getById(id: number) {
-    return this.repository.findOne({ where: { id } });
+  async getById(id: number): Promise<User> {
+    const user = await this.repository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
   }
+
   getByEmail(email: string) {
     return this.repository.findOne({ where: { email } });
   }
@@ -86,5 +107,23 @@ export class UserService {
     delete userData.password; // delete password from userData
 
     return userData;
+  }
+
+  async updateLoggedDate(
+    userId: number | undefined,
+    userEmail: string | undefined,
+  ) {
+    let user;
+    if (userId) {
+      user = await this.getById(userId);
+    } else if (userEmail) {
+      user = await this.getByEmail(userEmail);
+    }
+
+    if (!user) {
+      return false;
+    }
+
+    user.lastActiveAt = new Date();
   }
 }

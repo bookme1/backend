@@ -5,8 +5,6 @@ import {
   Get,
   Post,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
   Delete,
   Param,
 } from '@nestjs/common';
@@ -28,12 +26,6 @@ export class UsersController {
     const { id: userId } = req.user;
 
     return this.userService.getUserData(userId);
-  }
-
-  @UsePipes(new ValidationPipe({ transform: true }))
-  @Post('/')
-  public createUser(@Body() payload) {
-    return this.userService.saveUser(payload);
   }
 
   @UseGuards(AccessTokenGuard)

@@ -87,6 +87,16 @@ export class BooksController {
     }
   }
 
+  @Post('/watermarking')
+  public async makeWatermark() {
+    try {
+      const response = await this.bookService.watermarking();
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @UsePipes(new ValidationPipe({ transform: true }))
   @Patch(':id')
   public async editBook(

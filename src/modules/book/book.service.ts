@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
 import { Filter } from './book.dto';
 import { request } from 'https';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, createHmac, randomBytes } from 'crypto';
 import * as convert from 'xml-js';
 
 interface IFilter {
@@ -19,6 +19,7 @@ interface IFilter {
 
 @Injectable()
 export class BooksService {
+  private readonly logger = new Logger(BooksService.name);
   constructor(
     @InjectRepository(Book)
     private booksRepository: Repository<Book>,
@@ -47,6 +48,9 @@ export class BooksService {
   }
 
   parseAuthenticateHeader(header) {
+    if (!header) {
+      return 'header not implemented';
+    }
     const parts = header.split(',');
     const values = {};
     parts.forEach((part) => {
@@ -74,7 +78,16 @@ export class BooksService {
     return `Digest username="${username}", realm="${authValues.realm}", nonce="${authValues.nonce}", uri="${uri}", response="${response}", qop=${authValues.qop}, nc=${nc}, cnonce="${cnonce}", opaque="${authValues.opaque}"`;
   }
 
-  async makeDigestRequest(host, path, method, username, password, postData) {
+  async makeDigestRequest(
+    type,
+    host,
+    path,
+    method,
+    username,
+    password,
+    postData,
+  ) {
+    // type can be true or false. When true -> mode to fetch all books
     return new Promise((resolve, reject) => {
       const initialOptions = {
         host: host,
@@ -115,11 +128,15 @@ export class BooksService {
             });
             res.on('end', async () => {
               try {
-                const jsonResult = await convert.xml2json(body, {
-                  compact: true,
-                  spaces: 2,
-                });
-                resolve(JSON.parse(jsonResult).ONIXMessage.Product);
+                if (type) {
+                  const jsonResult = await convert.xml2json(body, {
+                    compact: true,
+                    spaces: 2,
+                  });
+                  resolve(JSON.parse(jsonResult).ONIXMessage.Product);
+                } else {
+                  resolve(body);
+                }
               } catch (error) {
                 reject(error);
               }
@@ -144,6 +161,36 @@ export class BooksService {
     });
   }
 
+  async watermarking() {
+    const secret = '1b41d378b24738917d314dff5c816b61';
+    const timestamp = Math.floor(Date.now() / 1000);
+    const hmac = createHmac('sha1', secret)
+      .update(timestamp.toString())
+      .digest('base64');
+    const sig = encodeURIComponent(hmac);
+
+    const payload = {
+      isbn: '9786170982841',
+      formats: 'epub',
+      visible_watermark:
+        'Цю книгу купив у магазині bookme користувач: user@gmail.com (Замовлення № 3926, 2024-02-02 19:58:19)',
+      price: 0,
+      stamp: timestamp,
+      sig: sig,
+      token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+    };
+
+    return this.makeDigestRequest(
+      false,
+      'platform.elibri.com.ua',
+      '/watermarking/watermark',
+      'POST',
+      'bookme_test', // Имя пользователя
+      '1b41d378b24738917d314dff5c816b61', // Пароль
+      payload,
+    );
+  }
+
   async updateBooksFromArthouse() {
     try {
       let dumpedBooks;
@@ -151,6 +198,7 @@ export class BooksService {
       let dumpedQuantity = 0;
       do {
         dumpedBooks = await this.makeDigestRequest(
+          true,
           'platform.elibri.com.ua',
           '/api/v1/queues/meta/pop',
           'POST',

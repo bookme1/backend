@@ -31,6 +31,8 @@ export class AuthService {
       username: user.username,
     };
     const tokens = await this.getTokens(payload);
+    // Set last user activity
+    await this.userService.updateLoggedDate(user.id, '');
 
     return {
       tokens,
@@ -50,6 +52,9 @@ export class AuthService {
     };
     const tokens = await this.getTokens(payload);
 
+    // Set last user activity
+    await this.userService.updateLoggedDate(user.id, '');
+
     return {
       tokens,
       user: this.userService.removePasswordFromUser(user),
@@ -58,10 +63,15 @@ export class AuthService {
 
   async googleSignup(username: string, email: string) {
     try {
-      return await this.userService.saveUser({
+      const response = await this.userService.saveUser({
         username,
         email,
       });
+
+      // Set last user activity
+      await this.userService.updateLoggedDate(undefined, email);
+
+      return response;
     } catch (error) {
       console.error('Error signing up with email:', error);
       throw new InternalServerErrorException({
@@ -75,11 +85,16 @@ export class AuthService {
   async signupEmail(username: string, email: string, password: string) {
     try {
       const hashedPassword = await hash(password, 12);
-      return await this.userService.saveUser({
+      const response = await this.userService.saveUser({
         username,
         email,
         password: hashedPassword,
       });
+
+      // Set last user activity
+      await this.userService.updateLoggedDate(undefined, email);
+
+      return response;
     } catch (error) {
       console.error('Error signing up with email:', error);
       throw new InternalServerErrorException({
@@ -97,6 +112,9 @@ export class AuthService {
 
     const tokens = await this.getTokens(payload);
     const userData = await this.userService.removePasswordFromUser(user);
+
+    // Set last user activity
+    await this.userService.updateLoggedDate(userId, '');
 
     return {
       tokens,
