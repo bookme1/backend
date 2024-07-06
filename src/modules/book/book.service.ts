@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
@@ -19,7 +19,6 @@ interface IFilter {
 
 @Injectable()
 export class BooksService {
-  private readonly logger = new Logger(BooksService.name);
   constructor(
     @InjectRepository(Book)
     private booksRepository: Repository<Book>,
@@ -48,9 +47,6 @@ export class BooksService {
   }
 
   parseAuthenticateHeader(header) {
-    if (!header) {
-      return 'header not implemented';
-    }
     const parts = header.split(',');
     const values = {};
     parts.forEach((part) => {
@@ -78,16 +74,7 @@ export class BooksService {
     return `Digest username="${username}", realm="${authValues.realm}", nonce="${authValues.nonce}", uri="${uri}", response="${response}", qop=${authValues.qop}, nc=${nc}, cnonce="${cnonce}", opaque="${authValues.opaque}"`;
   }
 
-  async makeDigestRequest(
-    type,
-    host,
-    path,
-    method,
-    username,
-    password,
-    postData,
-  ) {
-    // type can be true or false. When true -> mode to fetch all books
+  async makeDigestRequest(host, path, method, username, password, postData) {
     return new Promise((resolve, reject) => {
       const initialOptions = {
         host: host,
@@ -128,15 +115,11 @@ export class BooksService {
             });
             res.on('end', async () => {
               try {
-                if (type) {
-                  const jsonResult = await convert.xml2json(body, {
-                    compact: true,
-                    spaces: 2,
-                  });
-                  resolve(JSON.parse(jsonResult).ONIXMessage.Product);
-                } else {
-                  resolve(body);
-                }
+                const jsonResult = await convert.xml2json(body, {
+                  compact: true,
+                  spaces: 2,
+                });
+                resolve(JSON.parse(jsonResult).ONIXMessage.Product);
               } catch (error) {
                 reject(error);
               }
@@ -161,34 +144,97 @@ export class BooksService {
     });
   }
 
-  async watermarking() {
-    const secret = '1b41d378b24738917d314dff5c816b61';
-    const timestamp = Math.floor(Date.now() / 1000);
-    const hmac = createHmac('sha1', secret)
-      .update(timestamp.toString())
-      .digest('base64');
-    const sig = encodeURIComponent(hmac);
+  async watermarking(): Promise<void> {
+    // Получаем текущее время
+    const now = new Date();
 
-    const payload = {
-      isbn: '9786170982841',
-      formats: 'epub',
+    // Получаем UNIX timestamp в секундах
+    const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
+
+    // Генерируем HMAC для создания подписи (sig)
+    const secret = '1b41d378b24738917d314dff5c816b61'; // Замените на ваш приватный ключ
+    const hmac = createHmac('sha1', unixTimestamp);
+    const hmacDigest = hmac.update(secret).digest('base64');
+    const sig = encodeURIComponent(hmacDigest);
+
+    const data = {
+      isbn: '9786178209155',
+      formats: 'pdf',
       visible_watermark:
-        'Цю книгу купив у магазині bookme користувач: user@gmail.com (Замовлення № 3926, 2024-02-02 19:58:19)',
-      price: 0,
-      stamp: timestamp,
-      sig: sig,
+        'Цю книгу купив користувач: user@domain.com (Замовлення № XXX, b3258, 2024-07-06 21:55:25)',
+      stamp: unixTimestamp, // Временная метка в украинском времени
+      sig: sig, // Динамический HMAC в виде подписи
       token: 'e_wa_97fd26f52e0505e68ec782ea_test',
     };
 
-    return this.makeDigestRequest(
-      false,
-      'platform.elibri.com.ua',
-      '/watermarking/watermark',
-      'POST',
-      'bookme_test', // Имя пользователя
-      '1b41d378b24738917d314dff5c816b61', // Пароль
-      payload,
-    );
+    try {
+      const fetchModule = await import('node-fetch');
+      const fetch = fetchModule.default;
+
+      const url = 'https://platform.elibri.com.ua/watermarking/watermark';
+      const response = await fetch(url, {
+        method: 'POST',
+        body: new URLSearchParams(data as Record<string, string>),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      // Получаем текстовое представление ответа
+      const textResponse = await response.text();
+      console.log('Текстовый ответ от сервера:', textResponse);
+    } catch (error) {
+      console.error('Ошибка при отправке запроса:', error.message);
+    }
+  }
+
+  async deliver(transactionId: string): Promise<void> {
+    // Получаем текущее время
+    const now = new Date();
+
+    // Получаем UNIX timestamp в секундах
+    const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
+
+    // Генерируем HMAC для создания подписи (sig)
+    const secret = '1b41d378b24738917d314dff5c816b61'; // Замените на ваш приватный ключ
+    const hmac = createHmac('sha1', unixTimestamp);
+    const hmacDigest = hmac.update(secret).digest('base64');
+    const sig = encodeURIComponent(hmacDigest);
+
+    const data = {
+      trans_id: transactionId,
+      stamp: unixTimestamp, // Временная метка в украинском времени
+      sig: sig, // Динамический HMAC в виде подписи
+      token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+    };
+
+    try {
+      const fetchModule = await import('node-fetch');
+      const fetch = fetchModule.default;
+
+      const url = 'https://platform.elibri.com.ua/watermarking/deliver';
+      const response = await fetch(url, {
+        method: 'POST',
+        body: new URLSearchParams(data as Record<string, string>),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      // Получаем текстовое представление ответа
+      const textResponse = await response.text();
+      console.log('Текстовый ответ от сервера:', textResponse);
+    } catch (error) {
+      console.error('Ошибка при отправке запроса:', error.message);
+    }
   }
 
   async updateBooksFromArthouse() {
@@ -198,7 +244,6 @@ export class BooksService {
       let dumpedQuantity = 0;
       do {
         dumpedBooks = await this.makeDigestRequest(
-          true,
           'platform.elibri.com.ua',
           '/api/v1/queues/meta/pop',
           'POST',

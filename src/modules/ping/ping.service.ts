@@ -22,4 +22,8 @@ export class PingService {
 
     await this.pingRepository.save(newPing);
   }
+
+  async getAllPings() {
+    return await this.pingRepository.find();
+  }
 }

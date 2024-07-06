@@ -15,6 +15,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { BooksService } from './book.service';
 import {
+  deliverDTO,
   EditBookDto,
   FilterBookDto,
   FindBookDto,
@@ -78,9 +79,9 @@ export class BooksController {
   @Post('/updateBooksFromServer')
   public async updateBoooksFromArthouse() {
     try {
-      const response = await this.bookService.updateBooksFromArthouse();
-      console.log('Response:', response);
-      return response;
+      // const response = await this.bookService.updateBooksFromArthouse();
+      // console.log('Response:', response);
+      // return response;
     } catch (error) {
       console.error('Error:', error);
       throw error;
@@ -91,6 +92,18 @@ export class BooksController {
   public async makeWatermark() {
     try {
       const response = await this.bookService.watermarking();
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/deliver')
+  public async makeDeliver(@Body() transactionId: deliverDTO) {
+    try {
+      const response = await this.bookService.deliver(
+        transactionId.transactionId,
+      );
       return response;
     } catch (error) {
       throw error;
