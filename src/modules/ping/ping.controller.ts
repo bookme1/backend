@@ -1,4 +1,10 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PingService } from './ping.service';
 import { PingDTO } from './ping.dto';
@@ -8,7 +14,12 @@ import { PingDTO } from './ping.dto';
 export class PingController {
   constructor(private readonly pingService: PingService) {}
 
-  @Post()
+  @Get('')
+  async getAllPings() {
+    return await this.pingService.getAllPings();
+  }
+
+  @Post('')
   async acceptPing(@Body() body: PingDTO) {
     try {
       await this.pingService.acceptPing(body);

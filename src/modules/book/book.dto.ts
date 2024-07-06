@@ -102,3 +102,7 @@ export class FilterBookDto {
   @IsOptional()
   maxPrice!: number;
 }
+
+export class deliverDTO {
+  transactionId: string;
+}
