@@ -106,3 +106,12 @@ export class FilterBookDto {
 export class deliverDTO {
   transactionId: string;
 }
+
+export class WatermarkDTO {
+  @Expose()
+  formats: string;
+  @Expose()
+  reference_number: string;
+  @Expose()
+  order_id: string;
+}

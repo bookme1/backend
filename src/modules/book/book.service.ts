@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
@@ -6,6 +10,11 @@ import { Filter } from './book.dto';
 import { request } from 'https';
 import { createHash, createHmac, randomBytes } from 'crypto';
 import * as convert from 'xml-js';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import * as qs from 'qs';
+import { Order } from 'src/db/Order';
+import { Status } from 'src/db/types';
 
 interface IFilter {
   filter: Filter;
@@ -22,6 +31,9 @@ export class BooksService {
   constructor(
     @InjectRepository(Book)
     private booksRepository: Repository<Book>,
+    private httpService: HttpService,
+    @InjectRepository(Order)
+    private orderRepository: Repository<Order>,
   ) {}
 
   findAll(): Promise<Book[]> {
@@ -144,25 +156,29 @@ export class BooksService {
     });
   }
 
-  async watermarking(): Promise<void> {
-    // Получаем текущее время
-    const now = new Date();
+  async watermarking(
+    formats: string,
+    reference_number: string,
+    order_id: string,
+  ): Promise<string> {
+    if (!formats || !reference_number || !order_id) {
+      throw new BadRequestException('Not all parameters in order');
+    }
 
-    // Получаем UNIX timestamp в секундах
+    const now = new Date();
+    // UNIX timestamp
     const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
-    // Генерируем HMAC для создания подписи (sig)
-    const secret = '1b41d378b24738917d314dff5c816b61'; // Замените на ваш приватный ключ
+    // Generate HMAC for creating signature (sig)
+    const secret = '1b41d378b24738917d314dff5c816b61'; // Private key
     const hmac = createHmac('sha1', unixTimestamp);
     const hmacDigest = hmac.update(secret).digest('base64');
     const sig = encodeURIComponent(hmacDigest);
-
     const data = {
-      isbn: '9786178209155',
-      formats: 'pdf',
-      visible_watermark:
-        'Цю книгу купив користувач: user@domain.com (Замовлення № XXX, b3258, 2024-07-06 21:55:25)',
-      stamp: unixTimestamp, // Временная метка в украинском времени
+      record_reference: reference_number,
+      formats: formats,
+      visible_watermark: `Цю книгу купив користувач: user@domain.com (Замовлення № ${order_id}, b3258, 2024-07-06 21:55:25)`,
+      stamp: unixTimestamp,
       sig: sig, // Динамический HMAC в виде подписи
       token: 'e_wa_97fd26f52e0505e68ec782ea_test',
     };
@@ -184,15 +200,20 @@ export class BooksService {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      // Получаем текстовое представление ответа
+      // Получаем текстовое представление ответа, transaction_id
       const textResponse = await response.text();
       console.log('Текстовый ответ от сервера:', textResponse);
+      return textResponse;
     } catch (error) {
       console.error('Ошибка при отправке запроса:', error.message);
     }
   }
 
-  async deliver(transactionId: string): Promise<void> {
+  async deliver(transactionId: string): Promise<string> {
+    const order = await this.orderRepository.findOne({
+      where: { order_id: transactionId },
+    });
+    console.error(order);
     // Получаем текущее время
     const now = new Date();
 
@@ -204,9 +225,8 @@ export class BooksService {
     const hmac = createHmac('sha1', unixTimestamp);
     const hmacDigest = hmac.update(secret).digest('base64');
     const sig = encodeURIComponent(hmacDigest);
-
     const data = {
-      trans_id: transactionId,
+      trans_id: order.orderBooks[0].transId, // Временно только для 1 книги
       stamp: unixTimestamp, // Временная метка в украинском времени
       sig: sig, // Динамический HMAC в виде подписи
       token: 'e_wa_97fd26f52e0505e68ec782ea_test',
@@ -231,6 +251,8 @@ export class BooksService {
 
       // Получаем текстовое представление ответа
       const textResponse = await response.text();
+      order.status = Status.Succeed;
+      return 'OK';
       console.log('Текстовый ответ от сервера:', textResponse);
     } catch (error) {
       console.error('Ошибка при отправке запроса:', error.message);
@@ -400,15 +422,22 @@ export class BooksService {
     return { data, signature };
   }
 
-  testCheckout(amount: number): { data: string; signature: string } {
+  testCheckout(
+    amount: number,
+    order_id: string,
+    description: string,
+  ): {
+    data: string;
+    signature: string;
+  } {
     const params = {
       public_key: 'sandbox_i70460379180',
       version: '3',
       action: 'pay',
       amount: amount,
       currency: 'UAH',
-      description: 'Pay for books',
-      order_id: `order_id_${Date.now()}`,
+      description: description + '      Ідентифікатор замовлення: ' + order_id,
+      order_id: order_id,
       sandbox: 1,
     };
 
@@ -441,6 +470,57 @@ export class BooksService {
       return { formatEpub: value._text };
     } else {
       return { formatPdf: 'Невірний формат' };
+    }
+  }
+
+  async checkPaymentStatus(order_id: string): Promise<any> {
+    const PUBLIC_KEY = 'sandbox_i70460379180'; // Ваш публичный ключ LiqPay
+    const PRIVATE_KEY = 'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW'; // Ваш приватный ключ LiqPay
+    const API_URL = 'https://www.liqpay.ua/api/request';
+
+    const json = {
+      action: 'status',
+      version: 3,
+      public_key: PUBLIC_KEY,
+      order_id: order_id,
+    };
+
+    // Кодирование данных в base64
+    const data = Buffer.from(JSON.stringify(json)).toString('base64');
+
+    const hash = createHash('sha1');
+
+    const signature = hash
+      .update(PRIVATE_KEY + data + PRIVATE_KEY)
+      .digest('base64');
+
+    // Использование qs для создания строки запроса
+    const postData = qs.stringify({
+      data: data,
+      signature: signature,
+    });
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(API_URL, postData, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }),
+      );
+
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        // Это ошибка ответа от API LiqPay
+        throw new BadRequestException(
+          `LiqPay API error: ${error.response.data.err_description}`,
+        );
+      } else {
+        // Это другая ошибка, например, ошибка сети
+        throw new Error(`Error checking payment status: ${error.message}`);
+      }
     }
   }
 }

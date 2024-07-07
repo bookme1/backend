@@ -1,6 +1,7 @@
 import { encrypt } from 'src/helpers/encryption';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { Role } from './types';
+import { Order } from './Order';
 
 @Entity()
 export class User {
@@ -61,4 +62,7 @@ export class User {
 
   @Column('varchar', { array: true, default: [], nullable: false })
   books: string[]; // owned books
+
+  @OneToMany(() => Order, (order) => order.user, { eager: true }) // Define relations one to many
+  orders: Order[];
 }
