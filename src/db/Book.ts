@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsString } from 'class-validator';
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { OrderBook } from './OrderBook';
 
 @Entity()
 //@Unique(['title'])
@@ -62,4 +63,7 @@ export class Book {
   @Column({ default: '' })
   @IsString()
   formatEpub!: string;
+
+  @OneToMany(() => OrderBook, (orderBook) => orderBook.book)
+  orderBooks: OrderBook[];
 }

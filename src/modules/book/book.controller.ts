@@ -20,6 +20,7 @@ import {
   FilterBookDto,
   FindBookDto,
   SaveBookDto,
+  WatermarkDTO,
 } from './book.dto';
 
 @ApiTags('book')
@@ -88,10 +89,18 @@ export class BooksController {
     }
   }
 
+  //Make it private!!! only for registered users
   @Post('/watermarking')
-  public async makeWatermark() {
+  public async makeWatermark(
+    @Body()
+    body: WatermarkDTO,
+  ) {
     try {
-      const response = await this.bookService.watermarking();
+      const response = await this.bookService.watermarking(
+        body.formats,
+        body.reference_number,
+        body.order_id,
+      );
       return response;
     } catch (error) {
       throw error;
@@ -143,14 +152,32 @@ export class BooksController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('/checkout')
-  public async makeCheckout(@Query('amount') amount: number) {
+  public async makeCheckout(
+    @Query('amount') amount: number,
+    @Query('order_id') order_id: string,
+    @Query('description') description: string,
+  ) {
     try {
-      const response = await this.bookService.testCheckout(amount);
+      const response = await this.bookService.testCheckout(
+        amount,
+        order_id,
+        description,
+      );
       console.log('Response:', response);
       return response;
     } catch (error) {
       console.error('Error:', error);
       throw error;
+    }
+  }
+
+  @Get('payment-status/:order_id')
+  async getPaymentStatus(@Param('order_id') order_id: string) {
+    try {
+      const paymentStatus = await this.bookService.checkPaymentStatus(order_id);
+      return { status: paymentStatus.status }; // Вернуть статус платежа или другие данные
+    } catch (error) {
+      throw new Error(`Failed to get payment status: ${error.message}`);
     }
   }
 }
