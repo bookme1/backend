@@ -6,7 +6,6 @@ import { UsersModule } from '../user/user.module';
 import { AccessTokenStrategy } from './strategies/accessToken.strategy';
 import { RefreshTokenStrategy } from './strategies/refreshToken.strategy';
 import { UserService } from '../user/user.service';
-import Poppler from 'node-poppler';
 
 @Module({
   imports: [JwtModule.register({}), UsersModule],
@@ -16,7 +15,6 @@ import Poppler from 'node-poppler';
     UserService,
     AccessTokenStrategy,
     RefreshTokenStrategy,
-    Poppler,
   ],
 })
 export class AuthModule {}
