@@ -30,12 +30,8 @@ export class BooksController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Get('')
-  public getAll(@Query() params: FindBookDto) {
-    if (params.type === undefined && params.value === undefined) {
-      return this.bookService.findAll();
-    } else {
-      return this.bookService.findByParam(params.type, params.value);
-    }
+  public getAll() {
+    return this.bookService.findAll();
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export enum Filter {
@@ -65,42 +65,53 @@ export class FindBookDto {
 }
 
 export class FilterBookDto {
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, type: [String] })
   @IsOptional()
-  @IsString()
-  filter!: Filter;
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value
+      : decodeURIComponent(value)
+          .split(',')
+          .map((val) => val.trim()),
+  )
+  @IsString({ each: true })
+  authors?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value
+      : decodeURIComponent(value)
+          .split(',')
+          .map((val) => val.trim()),
+  )
+  @IsString({ each: true })
+  publishers?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value
+      : decodeURIComponent(value)
+          .split(',')
+          .map((val) => val.trim()),
+  )
+  @IsString({ each: true })
+  languages?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @Expose()
-  @IsString()
-  cover!: string;
+  @Transform(({ value }) => parseFloat(value))
+  @IsNumber()
+  minPrice?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @Expose()
-  @IsString()
-  author!: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @Expose()
-  @IsString()
-  lang!: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @Expose()
-  @IsString()
-  pub!: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  minPrice!: number;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  maxPrice!: number;
+  @Transform(({ value }) => parseFloat(value))
+  @IsNumber()
+  maxPrice?: number;
 }
 
 export class deliverDTO {

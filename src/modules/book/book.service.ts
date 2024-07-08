@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
-import { Filter } from './book.dto';
+import { FilterBookDto } from './book.dto';
 import { request } from 'https';
 import { createHash, createHmac, randomBytes } from 'crypto';
 import * as convert from 'xml-js';
@@ -15,16 +15,6 @@ import { firstValueFrom } from 'rxjs';
 import * as qs from 'qs';
 import { Order } from 'src/db/Order';
 import { Status } from 'src/db/types';
-
-interface IFilter {
-  filter: Filter;
-  cover: string;
-  author: string;
-  lang: string;
-  pub: string;
-  minPrice: number;
-  maxPrice: number;
-}
 
 @Injectable()
 export class BooksService {
@@ -357,26 +347,35 @@ export class BooksService {
     }
   }
 
-  async filterItems(params: IFilter): Promise<Book[]> {
+  async filterItems(params: FilterBookDto): Promise<Book[]> {
     try {
       const queryBuilder = this.booksRepository.createQueryBuilder('book');
 
-      if (params.author) {
-        queryBuilder.andWhere('book.author = :author', {
-          author: params.author,
+      // Dynamic conditions of filtration
+      // Handling multiple authors
+      if (params.authors && params.authors.length > 0) {
+        const authorsConditions = params.authors.map(
+          (author, index) => `book.author ILIKE :author_${index}`,
+        );
+        const authorsParams = Object.fromEntries(
+          params.authors.map((author, index) => [
+            `author_${index}`,
+            `%${author}%`,
+          ]),
+        );
+        queryBuilder.andWhere(authorsConditions.join(' OR '), authorsParams);
+      }
+
+      if (params.publishers && params.publishers.length > 0) {
+        queryBuilder.andWhere('book.pub IN (:...publishers)', {
+          publishers: params.publishers,
         });
       }
 
-      if (params.cover) {
-        queryBuilder.andWhere('book.cover = :cover', { cover: params.cover });
-      }
-
-      if (params.lang) {
-        queryBuilder.andWhere('book.lang = :lang', { lang: params.lang });
-      }
-
-      if (params.pub) {
-        queryBuilder.andWhere('book.pub = :pub', { pub: params.pub });
+      if (params.languages && params.languages.length > 0) {
+        queryBuilder.andWhere('book.lang IN (:...languages)', {
+          languages: params.languages,
+        });
       }
 
       if (params.minPrice !== undefined && params.maxPrice !== undefined) {
