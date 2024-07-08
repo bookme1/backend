@@ -20,8 +20,9 @@ export class PingController {
   }
 
   @Post('')
-  async acceptPing(@Body() body: PingDTO) {
+  async acceptPing(@Body() body: any) {
     try {
+      console.log(body);
       await this.pingService.acceptPing(body);
       return { status: 'success' };
     } catch (error) {

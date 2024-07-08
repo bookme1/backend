@@ -11,13 +11,14 @@ export class PingService {
     private pingRepository: Repository<Ping>,
   ) {}
 
-  async acceptPing(data: PingDTO) {
-    const { transactionId, pdfLink, epubLink, mobiLink } = data;
+  async acceptPing(data) {
+    const { trans_id, pdf_link, epub_link, mobi_link, status_link } = data;
     const newPing = {
-      pdfLink,
-      epubLink,
-      mobiLink,
-      transactionId,
+      pdfLink: pdf_link,
+      epubLink: epub_link,
+      mobiLink: mobi_link,
+      statusLink: status_link,
+      transactionId: trans_id,
     };
 
     await this.pingRepository.save(newPing);
