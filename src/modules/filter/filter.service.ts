@@ -4,6 +4,15 @@ import { Repository } from 'typeorm';
 import { Filter } from 'src/db/Filter';
 import { Book } from 'src/db/Book';
 
+interface GenreBook {
+  genre: string;
+}
+
+interface GenreNode {
+  count: number;
+  subgenres: { [key: string]: GenreNode };
+}
+
 @Injectable()
 export class FilterService {
   constructor(
@@ -14,16 +23,42 @@ export class FilterService {
   ) {}
 
   async getGenres() {
-    const books = await this.booksRepository.find();
-    const genreCount = books.reduce((acc, book) => {
-      acc[book.genre] = (acc[book.genre] || 0) + 1;
-      return acc;
-    }, {});
+    const books: Book[] = await this.booksRepository.find();
 
-    return Object.entries(genreCount).map(([genre, count]) => ({
-      genre,
-      count,
-    }));
+    // Creating object for creating tree structure
+    const genreTree: { [key: string]: GenreNode } = {};
+
+    // Function for inserting nodes into tree object
+    const insertGenre = (
+      path: string[],
+      node: { [key: string]: GenreNode },
+    ) => {
+      const [head, ...tail] = path;
+      if (!node[head]) {
+        node[head] = { count: 0, subgenres: {} };
+      }
+      node[head].count += 1; // Increase books quantity in current level
+      if (tail.length > 0) {
+        insertGenre(tail, node[head].subgenres);
+      }
+    };
+
+    // Filling in tree structured object
+    books.forEach((book) => {
+      const path = book.genre.split(' / ');
+      insertGenre(path, genreTree);
+    });
+
+    // A function to convert the tree structure into an array of objects
+    const treeToArray = (node: { [key: string]: GenreNode }) => {
+      return Object.entries(node).map(([genre, data]) => ({
+        genre,
+        count: data.count,
+        subgenres: treeToArray(data.subgenres),
+      }));
+    };
+
+    return treeToArray(genreTree);
   }
 
   async getFilters() {
