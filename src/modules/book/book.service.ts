@@ -386,7 +386,7 @@ export class BooksService {
       }
 
       const filteredBooks = await queryBuilder.getMany();
-      return filteredBooks;
+      return filteredBooks.slice(0, 20);
     } catch (error) {
       throw new Error(`Error filtering books: ${error.message}`);
     }
