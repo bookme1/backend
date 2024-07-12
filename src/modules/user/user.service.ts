@@ -49,17 +49,17 @@ export class UserService {
 
     if (type == BookType.Fav) {
       if (user.fav.includes(bookId)) {
-        return new BadRequestException('Book is already exists');
+        return new BadRequestException('Book already exists');
       }
       user.fav.push(bookId);
     } else if (type == BookType.Cart) {
       if (user.cart.includes(bookId)) {
-        return new BadRequestException('Book is already exists');
+        return new BadRequestException('Book already exists');
       }
       user.cart.push(bookId);
     }
 
-    this.repository.update(user.id, user);
+    await this.repository.save(user);
     return { message: 'successfully', bookId };
   }
 
@@ -70,15 +70,20 @@ export class UserService {
 
     // Set last user activity
     await this.updateLoggedDate(userId, '');
+
     if (type == BookType.Fav) {
-      const index = user.fav.findIndex((val) => val == bookId);
-      user.fav.splice(index, 1);
-      this.repository.update(user.id, user);
+      const index = user.fav.findIndex((val) => val === bookId);
+      if (index > -1) {
+        user.fav.splice(index, 1);
+      }
+      await this.repository.save(user);
       return user.fav;
     } else if (type == BookType.Cart) {
-      const index = user.cart.findIndex((val) => val == bookId);
-      user.cart.splice(index, 1);
-      this.repository.update(user.id, user);
+      const index = user.cart.findIndex((val) => val === bookId);
+      if (index > -1) {
+        user.cart.splice(index, 1);
+      }
+      await this.repository.save(user);
       return user.cart;
     }
 
