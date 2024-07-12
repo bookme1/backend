@@ -40,6 +40,8 @@ export class UserService {
   }
 
   async addUserBook(type: BookType, userId: number, bookId: string) {
+    if (type == null) return new BadRequestException('Type is not provided');
+
     const user = await this.getById(userId);
 
     // Set last user activity
@@ -47,12 +49,12 @@ export class UserService {
 
     if (type == BookType.Fav) {
       if (user.fav.includes(bookId)) {
-        return new BadRequestException();
+        return new BadRequestException('Book is already exists');
       }
       user.fav.push(bookId);
     } else if (type == BookType.Cart) {
       if (user.cart.includes(bookId)) {
-        return new BadRequestException();
+        return new BadRequestException('Book is already exists');
       }
       user.cart.push(bookId);
     }
@@ -62,11 +64,12 @@ export class UserService {
   }
 
   async removeUserBook(type: BookType, userId: number, bookId: string) {
+    if (type == null) return new BadRequestException('Type is not provided');
+
     const user = await this.getById(userId);
 
     // Set last user activity
     await this.updateLoggedDate(userId, '');
-
     if (type == BookType.Fav) {
       const index = user.fav.findIndex((val) => val == bookId);
       user.fav.splice(index, 1);
