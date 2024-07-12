@@ -18,7 +18,6 @@ import {
   deliverDTO,
   EditBookDto,
   FilterBookDto,
-  FindBookDto,
   SaveBookDto,
   WatermarkDTO,
 } from './book.dto';
