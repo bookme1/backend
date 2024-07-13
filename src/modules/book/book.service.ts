@@ -204,6 +204,10 @@ export class BooksService {
       where: { order_id: transactionId },
     });
     console.error(order);
+    if (order.status != Status.Payed) {
+      return "You didn't pay!";
+    }
+
     // Получаем текущее время
     const now = new Date();
 
@@ -241,9 +245,11 @@ export class BooksService {
 
       // Получаем текстовое представление ответа
       const textResponse = await response.text();
+
       order.status = Status.Succeed;
+      await this.orderRepository.save(order);
+
       return 'OK';
-      console.log('Текстовый ответ от сервера:', textResponse);
     } catch (error) {
       console.error('Ошибка при отправке запроса:', error.message);
     }
@@ -508,7 +514,30 @@ export class BooksService {
         }),
       );
 
-      console.log(response.data);
+      const order = await this.orderRepository.findOne({
+        where: { order_id },
+      });
+
+      if (order) {
+        if (
+          response.data.status == 'error' ||
+          response.data.status == 'failure'
+        ) {
+          order.status = Status.Error;
+        } else if (
+          response.data.status == 'sandbox' ||
+          response.data.status == 'success'
+        ) {
+          order.status = Status.Payed;
+        } else if (response.data.status == 'processing') {
+          order.status = Status.Loading;
+        } else {
+          order.status = Status.Unknown;
+        }
+
+        this.orderRepository.save(order);
+      }
+
       return response.data;
     } catch (error) {
       if (error.response) {

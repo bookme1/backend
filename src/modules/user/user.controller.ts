@@ -37,6 +37,13 @@ export class UsersController {
 
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth(constants.authPatternName)
+  @Get('/orderedBooks')
+  getOrderedBooks(@Request() req: any) {
+    return this.userService.getOrderedBooks(req.user.id);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
   @Post('/books')
   addUserBook(@Request() req: any, @Body() userBooksDTO: UserBooksDTO) {
     return this.userService.addUserBook(

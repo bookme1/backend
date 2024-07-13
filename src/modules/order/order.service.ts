@@ -2,10 +2,11 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from 'src/db/Order';
-import { CreateOrderDTO, Status } from './order.dto';
+import { CreateOrderDTO } from './order.dto';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { Book } from 'src/db/Book';
+import { Status } from 'src/db/types';
 
 @Injectable()
 export class OrderService {
@@ -26,6 +27,8 @@ export class OrderService {
     createOrderDTO: CreateOrderDTO,
     userId: string,
   ): Promise<any> {
+    let ifSomethingEmpty = false;
+
     if (
       !createOrderDTO.orderBooks ||
       !createOrderDTO.order_id ||
@@ -51,6 +54,13 @@ export class OrderService {
     order.orderBooks = [];
 
     for (const book of createOrderDTO.orderBooks) {
+      if (
+        book.ordered_formats == null ||
+        book.reference_number == null ||
+        book.transaction_id == null
+      ) {
+        ifSomethingEmpty = true;
+      }
       const orderBook = new OrderBook();
       orderBook.orderedFormats = book.ordered_formats;
       orderBook.book = await this.booksRepository.findOne({
@@ -60,6 +70,8 @@ export class OrderService {
       orderBook.order = order; // Make relations with order
       order.orderBooks.push(orderBook); // Add orderBook to the array
     }
+
+    if (ifSomethingEmpty) order.status = Status.Error;
 
     const savedOrder = await this.repository.save(order);
 
@@ -77,5 +89,11 @@ export class OrderService {
         },
       })),
     };
+  }
+
+  async findSuccessfulOrdersByUserId(userId: number): Promise<Order[]> {
+    return this.repository.find({
+      where: { user: { id: userId }, status: Status.Success },
+    });
   }
 }

@@ -90,6 +90,13 @@ export class UserService {
     return new BadRequestException();
   }
 
+  async getOrderedBooks(userId: number) {
+    const user = await this.getById(userId);
+    if (!user) return new BadRequestException('user not found');
+
+    return new BadRequestException();
+  }
+
   async getById(id: number): Promise<User> {
     const user = await this.repository.findOne({ where: { id } });
     if (!user) {
