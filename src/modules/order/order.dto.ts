@@ -33,7 +33,9 @@ export enum Status {
   Created = 'Created',
   Loading = 'Loading',
   Cancelled = 'Cancelled',
+  Error = 'Error',
   Succeed = 'Succeed',
+  Success = 'Success',
 }
 
 export class IOrderBook {

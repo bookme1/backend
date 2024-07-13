@@ -7,11 +7,15 @@ export enum Role {
 }
 
 export enum Status {
-  Unknown = 'Unknown',
-  Created = 'Created',
-  Loading = 'Loading',
-  Cancelled = 'Cancelled',
+  Unknown = 'Unknown', // Не зрозумілий статус
+  Created = 'Created', // Створена вотермарка
+  Loading = 'Loading', // Завантаження статусу
+  Error = 'Error', // Сталась помилка при оплаті
+  Overtime = 'Overtime', // Сталась помилка при оплаті
+  Cancelled = 'Cancelled', // Відмінено кліентом
+  Payed = 'Payed', // Підтверджена оплата від платіжної системи
   Succeed = 'Succeed',
+  Success = 'Success', // Доставлено кліенту на акаунт
 }
 
 export interface IOrderBook {
