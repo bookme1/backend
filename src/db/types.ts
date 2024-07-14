@@ -14,8 +14,8 @@ export enum Status {
   Overtime = 'Overtime', // Сталась помилка при оплаті
   Cancelled = 'Cancelled', // Відмінено кліентом
   Payed = 'Payed', // Підтверджена оплата від платіжної системи
-  Succeed = 'Succeed',
-  Success = 'Success', // Доставлено кліенту на акаунт
+  Delievered = 'Delievered', // Замовлена доставка, очікуеться пінг
+  Succeed = 'Succeed', // Доставлено кліенту на акаунт
 }
 
 export interface IOrderBook {

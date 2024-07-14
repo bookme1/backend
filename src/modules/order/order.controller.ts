@@ -11,11 +11,15 @@ import { OrderService } from './order.service';
 import { CreateOrderDTO } from './order.dto';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
+import { BooksService } from '../book/book.service';
 
 @ApiTags('order')
 @Controller('api/order')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(
+    private readonly orderService: OrderService,
+    private readonly bookService: BooksService,
+  ) {}
 
   //ONLY ADMINS
   @UseGuards(AccessTokenGuard)
@@ -32,5 +36,22 @@ export class OrderController {
   public createOrder(@Body() order: CreateOrderDTO, @Request() req: any) {
     const { id: userId } = req.user;
     return this.orderService.createOrder(order, userId);
+  }
+
+  // ONLY REGISTERED USERS
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @Get('/orderedBooks')
+  public async getUserBoughtBooks(@Request() req: any) {
+    const { id: userId } = req.user;
+    // Check status for all loading payments. If payed -> deliver
+    const ordersInLoading = await this.orderService.findAllLoading(userId);
+    ordersInLoading.forEach((o) => {
+      this.bookService.checkPaymentStatus(o.order_id);
+    });
+
+    // Take all books from succeed orders
+    const succeedOrders = await this.orderService.findAllSucceed(userId);
+    return succeedOrders.flatMap((o) => o.orderBooks);
   }
 }
