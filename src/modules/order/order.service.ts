@@ -7,12 +7,15 @@ import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { Book } from 'src/db/Book';
 import { Status } from 'src/db/types';
+import { Ping } from 'src/db/Ping';
 
 @Injectable()
 export class OrderService {
   constructor(
     @InjectRepository(Order)
     private repository: Repository<Order>,
+    @InjectRepository(OrderBook)
+    private orderBookrepository: Repository<OrderBook>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(Book)
@@ -91,9 +94,57 @@ export class OrderService {
     };
   }
 
-  async findSuccessfulOrdersByUserId(userId: number): Promise<Order[]> {
-    return this.repository.find({
-      where: { user: { id: userId }, status: Status.Success },
+  async findAllLoading(userId: number): Promise<Order[]> {
+    return await this.repository.find({
+      where: { user: { id: userId }, status: Status.Loading },
     });
+  }
+
+  async findAllSucceed(userId: number): Promise<Order[]> {
+    return await this.repository.find({
+      where: { user: { id: userId }, status: Status.Succeed },
+    });
+  }
+
+  async orderDelievered(ping: Ping) {
+    //Find ordered book by transaction id from ping
+    const orderBook = await this.orderBookrepository.findOne({
+      where: { transId: ping.transactionId },
+    });
+    if (!orderBook) {
+      return new BadRequestException('Order book not found by transaction id');
+    }
+    // Assign link values to books from elibri ping
+    orderBook.epubLink = ping.epubLink;
+    orderBook.pdfLink = ping.pdfLink;
+    orderBook.mobiLink = ping.mobiLink;
+    orderBook.status = Status.Succeed;
+
+    this.orderBookrepository.save(orderBook);
+
+    // Check if all books were already delievered from order
+    await this.checkDeliveryOrder(orderBook.order.order_id);
+
+    return true;
+  }
+
+  async checkDeliveryOrder(orderId: string) {
+    const order = await this.repository.findOne({
+      where: { order_id: orderId },
+    });
+
+    if (!order) return new BadRequestException("order wasn't found");
+
+    const shouldStatusChange = order.orderBooks.findIndex(
+      (o) => o.status != Status.Succeed,
+    );
+
+    if (shouldStatusChange == -1) {
+      order.status == Status.Succeed;
+      this.repository.save(order);
+      return true;
+    }
+
+    return false;
   }
 }

@@ -7,12 +7,15 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PingService } from './ping.service';
-import { PingDTO } from './ping.dto';
+import { OrderService } from '../order/order.service';
 
 @ApiTags('ping')
 @Controller('api/ping')
 export class PingController {
-  constructor(private readonly pingService: PingService) {}
+  constructor(
+    private readonly pingService: PingService,
+    private readonly orderService: OrderService,
+  ) {}
 
   @Get('')
   async getAllPings() {
@@ -22,9 +25,9 @@ export class PingController {
   @Post('')
   async acceptPing(@Body() body: any) {
     try {
-      console.log(body);
-      await this.pingService.acceptPing(body);
-      return { status: 'success' };
+      const ping = await this.pingService.acceptPing(body);
+
+      return await this.orderService.orderDelievered(ping);
     } catch (error) {
       throw new BadRequestException();
     }

@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Ping } from 'src/db/Ping';
-import { PingDTO } from './ping.dto';
 
 @Injectable()
 export class PingService {
@@ -13,15 +12,16 @@ export class PingService {
 
   async acceptPing(data) {
     const { trans_id, pdf_link, epub_link, mobi_link, status_link } = data;
-    const newPing = {
-      pdfLink: pdf_link,
-      epubLink: epub_link,
-      mobiLink: mobi_link,
-      statusLink: status_link,
-      transactionId: trans_id,
-    };
+    const newPing = new Ping();
+    newPing.pdfLink = pdf_link;
+    newPing.epubLink = epub_link;
+    newPing.mobiLink = mobi_link;
+    newPing.statusLink = status_link;
+    newPing.transactionId = trans_id;
 
     await this.pingRepository.save(newPing);
+
+    return newPing;
   }
 
   async getAllPings() {
