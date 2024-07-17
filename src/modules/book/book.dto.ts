@@ -65,6 +65,9 @@ export class FindBookDto {
 }
 
 export class FilterBookDto {
+  @Expose()
+  page: string;
+
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
   @Transform(({ value }) =>
