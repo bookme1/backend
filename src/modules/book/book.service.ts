@@ -377,6 +377,15 @@ export class BooksService {
           publishers: params.publishers,
         });
       }
+      if (params.genre && params.genre.length > 0) {
+        const genreConditions = params.genre.map(
+          (genre, index) => `book.genre ILIKE :genre_${index}`,
+        );
+        const genreParams = Object.fromEntries(
+          params.genre.map((genre, index) => [`genre_${index}`, `%${genre}%`]),
+        );
+        queryBuilder.andWhere(genreConditions.join(' OR '), genreParams);
+      }
 
       if (params.languages && params.languages.length > 0) {
         queryBuilder.andWhere('book.lang IN (:...languages)', {

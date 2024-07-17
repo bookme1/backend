@@ -99,6 +99,18 @@ export class FilterBookDto {
           .map((val) => val.trim()),
   )
   @IsString({ each: true })
+  genre?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value
+      : decodeURIComponent(value)
+          .split(',')
+          .map((val) => val.trim()),
+  )
+  @IsString({ each: true })
   languages?: string[];
 
   @ApiProperty({ required: false })
