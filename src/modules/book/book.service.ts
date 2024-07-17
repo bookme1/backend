@@ -400,6 +400,13 @@ export class BooksService {
         });
       }
 
+      // Implementing pagination
+      const page = Number(params.page) || 1;
+      const pageSize = 20;
+      const offset = (page - 1) * pageSize;
+
+      queryBuilder.skip(offset).take(pageSize);
+
       const filteredBooks = await queryBuilder.getMany();
       return filteredBooks;
     } catch (error) {
