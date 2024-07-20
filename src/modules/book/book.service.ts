@@ -353,12 +353,13 @@ export class BooksService {
     }
   }
 
-  async filterItems(params: FilterBookDto): Promise<Book[]> {
+  async filterItems(
+    params: FilterBookDto,
+  ): Promise<{ quantity: number; books: Book[] }> {
     try {
       const queryBuilder = this.booksRepository.createQueryBuilder('book');
 
       // Dynamic conditions of filtration
-      // Handling multiple authors
       if (params.authors && params.authors.length > 0) {
         const authorsConditions = params.authors.map(
           (author, index) => `book.author ILIKE :author_${index}`,
@@ -400,6 +401,10 @@ export class BooksService {
         });
       }
 
+      // Get total count of filtered books
+      const totalQuery = queryBuilder.clone();
+      const quantity = await totalQuery.getCount();
+
       // Implementing pagination
       const page = Number(params.page) || 1;
       const pageSize = 20;
@@ -407,8 +412,9 @@ export class BooksService {
 
       queryBuilder.skip(offset).take(pageSize);
 
-      const filteredBooks = await queryBuilder.getMany();
-      return filteredBooks;
+      const books = await queryBuilder.getMany();
+
+      return { quantity, books };
     } catch (error) {
       throw new Error(`Error filtering books: ${error.message}`);
     }
