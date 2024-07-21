@@ -11,6 +11,8 @@ export class PingService {
   ) {}
 
   async acceptPing(data) {
+    // console.log(data);
+    // return data;
     const { trans_id, pdf_link, epub_link, mobi_link, status_link } = data;
     const newPing = new Ping();
     newPing.pdfLink = pdf_link;

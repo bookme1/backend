@@ -120,17 +120,17 @@ export class OrderService {
     orderBook.mobiLink = ping.mobiLink;
     orderBook.status = Status.Succeed;
 
-    this.orderBookrepository.save(orderBook);
+    await this.orderBookrepository.save(orderBook);
 
     // Check if all books were already delievered from order
-    await this.checkDeliveryOrder(orderBook.order.order_id);
+    await this.checkDeliveryOrder(orderBook.orderId);
 
-    return true;
+    return 'Succeed';
   }
 
   async checkDeliveryOrder(orderId: string) {
     const order = await this.repository.findOne({
-      where: { order_id: orderId },
+      where: { id: Number(orderId) },
     });
 
     if (!order) return new BadRequestException("order wasn't found");
