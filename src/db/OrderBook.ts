@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Order } from './Order';
 import { Book } from './Book';
 import { IsString } from 'class-validator';
@@ -9,7 +15,11 @@ export class OrderBook {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, (order) => order.orderBooks)
+  @Column()
+  orderId: string;
+
+  @ManyToOne(() => Order, (order) => order.order_id)
+  @JoinColumn({ name: 'orderId' }) // Specify that this column is the foreign key
   order: Order;
 
   @ManyToOne(() => Book, (book) => book.orderBooks, { eager: true })
