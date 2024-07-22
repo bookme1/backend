@@ -9,7 +9,8 @@ const config = getConfig();
 
 const httpsOptions = {
   key: fs.readFileSync('./secrets/private-key.pem'),
-  cert: fs.readFileSync('./secrets/public-certificate.pem'),
+  cert: fs.readFileSync('./secrets/public-key.crt'),
+  ca: [fs.readFileSync('./secrets/fullchain.ca-bundle')],
 };
 
 async function bootstrap() {
