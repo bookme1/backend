@@ -562,15 +562,16 @@ export class BooksService {
 
       return response.data;
     } catch (error) {
-      if (error.response) {
-        // Это ошибка ответа от API LiqPay
-        throw new BadRequestException(
-          `LiqPay API error: ${error.response.data.err_description}`,
-        );
-      } else {
-        // Это другая ошибка, например, ошибка сети
-        throw new Error(`Error checking payment status: ${error.message}`);
-      }
+      console.error(error);
+      // if (error.response) {
+      // Это ошибка ответа от API LiqPay
+      // throw new BadRequestException(
+      //   `LiqPay API error: ${error.response.data.err_description}`,
+      // );
+      // } else {
+      // Это другая ошибка, например, ошибка сети
+      // throw new Error(`Error checking payment status: ${error.message}`);
+      // }
     }
   }
 }
