@@ -9,9 +9,8 @@ import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.i
 const config = getConfig();
 
 const httpsOptions: HttpsOptions = {
-  key: fs.readFileSync('./secrets/private-key.pem'),
-  cert: fs.readFileSync('./secrets/public-key.crt'),
-  ca: [fs.readFileSync('./secrets/fullchain.ca-bundle')],
+  key: fs.readFileSync('/etc/letsencrypt/live/bookme.kyiv.ua/privkey.pem'), // Do not change it! Pfad is for the deploy server
+  cert: fs.readFileSync('/etc/letsencrypt/live/bookme.kyiv.ua/fullchain.pem'),
 };
 
 async function bootstrap() {
