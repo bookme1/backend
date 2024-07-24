@@ -245,7 +245,7 @@ export class BooksService {
 
       // Получаем текстовое представление ответа
       const textResponse = await response.text();
-
+      console.log('Making status delievered!');
       order.status = Status.Delievered;
       await this.orderRepository.save(order);
 

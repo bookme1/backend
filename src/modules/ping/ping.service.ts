@@ -14,7 +14,17 @@ export class PingService {
     // console.log(data);
     // return data;
     const { trans_id, pdf_link, epub_link, mobi_link, status_link } = data;
-    const newPing = new Ping();
+
+    const existingPing = this.pingRepository.findOne({
+      where: { transactionId: trans_id },
+    });
+    let newPing;
+    if (!existingPing) {
+      newPing = new Ping();
+    } else {
+      newPing = existingPing;
+    }
+
     newPing.pdfLink = pdf_link;
     newPing.epubLink = epub_link;
     newPing.mobiLink = mobi_link;
