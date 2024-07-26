@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   Request,
   UseGuards,
   UsePipes,
@@ -17,6 +18,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { constants } from 'src/config/constants';
 import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { Role } from 'src/db/types';
 
 @ApiTags('auth')
 @Controller('api/auth')
@@ -43,11 +45,15 @@ export class AuthController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('email/signup')
-  public signupEmail(@Body() signupEmailDto: EmailSignupDto) {
+  public signupEmail(
+    @Body() signupEmailDto: EmailSignupDto,
+    @Query('role') role?: Role,
+  ) {
     return this.authService.signupEmail(
       signupEmailDto.username,
       signupEmailDto.email,
       signupEmailDto.password,
+      role,
     );
   }
 

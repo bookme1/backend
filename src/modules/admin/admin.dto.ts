@@ -8,6 +8,6 @@ export class SetRoleDto {
   userId: number;
 
   @IsNotEmpty()
-  @IsIn([Role.Admin, Role.User, Role.Moderator])
+  @IsIn([Role.Admin, Role.User, Role.Moderator, Role.Author])
   role: Role;
 }

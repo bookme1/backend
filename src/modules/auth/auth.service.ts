@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcrypt';
 import { getConfig } from 'src/config';
 import { UserService } from '../user/user.service';
+import { Role } from 'src/db/types';
 
 const config = getConfig();
 
@@ -82,13 +83,19 @@ export class AuthService {
     }
   }
 
-  async signupEmail(username: string, email: string, password: string) {
+  async signupEmail(
+    username: string,
+    email: string,
+    password: string,
+    role: Role = Role.User,
+  ) {
     try {
       const hashedPassword = await hash(password, 12);
       const response = await this.userService.saveUser({
         username,
         email,
         password: hashedPassword,
+        role,
       });
 
       // Set last user activity
