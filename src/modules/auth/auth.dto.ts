@@ -1,5 +1,12 @@
 import { Expose } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsString,
+} from 'class-validator';
+import { Role } from 'src/db/types';
 
 export class EmailLoginDto {
   @Expose()
@@ -37,6 +44,10 @@ export class EmailSignupDto {
   @Expose()
   @IsString()
   password!: string;
+
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 }
 
 export class EmailVerifyDto {
