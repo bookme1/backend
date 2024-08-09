@@ -14,6 +14,7 @@ import {
   EmailGoogleDto,
   EmailLoginDto,
   EmailSignupDto,
+  ForgotPasswordDto,
 } from 'src/modules/auth/auth.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { constants } from 'src/config/constants';
@@ -63,5 +64,10 @@ export class AuthController {
   public refreshTokens(@Request() req: any) {
     const { id: userId } = req.user;
     return this.authService.refreshTokens(userId);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
   }
 }
