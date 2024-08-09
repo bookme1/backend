@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FilterService } from './filter.service';
 
@@ -18,5 +18,11 @@ export class FilterController {
   @Get('/filters')
   public getGenres() {
     return this.filterService.getFilters();
+  }
+
+  //Get book title & ID
+  @Get('books')
+  async getBooks(@Query('searchOnlyTitles') searchOnlyTitles?: boolean) {
+    return this.filterService.getFilteredBooks(searchOnlyTitles);
   }
 }

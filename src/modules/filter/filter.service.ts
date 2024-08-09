@@ -4,9 +4,9 @@ import { Repository } from 'typeorm';
 import { Filter } from 'src/db/Filter';
 import { Book } from 'src/db/Book';
 
-interface GenreBook {
-  genre: string;
-}
+// interface GenreBook {
+//   genre: string;
+// }
 
 interface GenreNode {
   count: number;
@@ -106,5 +106,15 @@ export class FilterService {
       minPrice,
       maxPrice,
     };
+  }
+
+  async getFilteredBooks(searchOnlyTitles: boolean = false) {
+    const books = await this.booksRepository.find();
+
+    if (searchOnlyTitles) {
+      return books.map((book) => ({ id: book.id, title: book.title }));
+    }
+
+    return books;
   }
 }
