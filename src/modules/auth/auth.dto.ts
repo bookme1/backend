@@ -92,3 +92,9 @@ export class passwordVerifyDto {
   @IsNotEmpty()
   passwordToken!: string;
 }
+
+export class ForgotPasswordDto {
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+}

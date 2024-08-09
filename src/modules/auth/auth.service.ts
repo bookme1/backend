@@ -1,7 +1,9 @@
 import {
   ForbiddenException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -9,6 +11,9 @@ import { compare, hash } from 'bcrypt';
 import { getConfig } from 'src/config';
 import { UserService } from '../user/user.service';
 import { Role } from 'src/db/types';
+import { MailService } from '../mail/mail.service';
+import { EmailTemplateParams } from '../mail/mail-interface';
+import { ForgotPasswordDto } from './auth.dto';
 
 const config = getConfig();
 
@@ -17,6 +22,7 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async loginEmail(email: string, password: string) {
@@ -144,5 +150,28 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const user = await this.userService.getByEmail(forgotPasswordDto.email);
+    if (!user) throw new UnauthorizedException();
+    const payload = {
+      id: user.id,
+      username: user.username,
+    };
+    const tokens = await this.getTokens(payload);
+    const link = `${process.env.CLIENT_DOMAIN}/resetPassword/${user.id}/${tokens.accessToken}`;
+    const mailData: EmailTemplateParams = {
+      to_name: user.username,
+      to_email: forgotPasswordDto.email,
+      link: link,
+    };
+if (await this.mailService.sendForgotPasswordEmail( mailData)) {
+  return     HttpStatus.OK,
+    'if you are registered, you will shortly receive reset email link',
+  
+}
+throw new ServiceUnavailableException(HttpStatus.SERVICE_UNAVAILABLE, 'Service is unavailable'),
+
   }
 }

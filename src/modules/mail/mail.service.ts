@@ -1,20 +1,34 @@
+import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
+import { SentMessageInfo } from 'nodemailer';
+import { EmailTemplateParams } from './mail-interface';
 
 @Injectable()
 export class MailService {
-  // create(createMailDto: CreateMailDto) {
-  //   return 'This action adds a new mail';
-  // }
-  // findAll() {
-  //   return `This action returns all mail`;
-  // }
-  // findOne(id: number) {
-  //   return `This action returns a #${id} mail`;
-  // }
-  // update(id: number, updateMailDto: UpdateMailDto) {
-  //   return `This action updates a #${id} mail`;
-  // }
-  // remove(id: number) {
-  //   return `This action removes a #${id} mail`;
-  // }
+  sendMail(): void {
+    throw new Error('Method not implemented.');
+  }
+  constructor(private mailerService: MailerService) {}
+
+  async sendForgotPasswordEmail(
+    params: EmailTemplateParams,
+  ): Promise<SentMessageInfo> {
+    try {
+      const response = await this.mailerService.sendMail({
+        to: params.to_email,
+        from: process.env.SADMIN_EMAIL,
+        subject: 'Forgot password',
+        text: params.link,
+      });
+      console.log('Email sent successfully:', response);
+      return true;
+    } catch (error) {
+      if (error) {
+        console.log('EMAILJS FAILED...', error);
+        return false;
+      }
+      console.log('ERROR', error);
+      return false;
+    }
+  }
 }
