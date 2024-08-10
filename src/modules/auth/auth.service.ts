@@ -166,12 +166,15 @@ export class AuthService {
       to_email: forgotPasswordDto.email,
       link: link,
     };
-if (await this.mailService.sendForgotPasswordEmail( mailData)) {
-  return     HttpStatus.OK,
-    'if you are registered, you will shortly receive reset email link',
-  
-}
-throw new ServiceUnavailableException(HttpStatus.SERVICE_UNAVAILABLE, 'Service is unavailable'),
-
+    if (await this.mailService.sendForgotPasswordEmail(mailData)) {
+      return (
+        HttpStatus.OK,
+        'if you are registered, you will shortly receive reset email link'
+      );
+    }
+    throw new ServiceUnavailableException(
+      HttpStatus.SERVICE_UNAVAILABLE,
+      'Service is unavailable',
+    );
   }
 }

@@ -16,7 +16,7 @@ export class MailService {
     try {
       const response = await this.mailerService.sendMail({
         to: params.to_email,
-        from: process.env.SADMIN_EMAIL,
+        from: process.env.ADMIN_EMAIL,
         subject: 'Forgot password',
         text: params.link,
       });
