@@ -68,10 +68,15 @@ export class PasswordResetDto {
   @IsNotEmpty()
   password!: string;
 
+  // @Expose()
+  // @IsString()
+  // @IsNotEmpty()
+  // resetToken!: string;
+
   @Expose()
   @IsString()
   @IsNotEmpty()
-  resetToken!: string;
+  confirm_password!: string;
 }
 
 export class PasswordChangeDto {

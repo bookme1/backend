@@ -10,15 +10,15 @@ export class MailService {
   }
   constructor(private mailerService: MailerService) {}
 
-  async sendForgotPasswordEmail(
+  async sendPasswordEmail(
     params: EmailTemplateParams,
   ): Promise<SentMessageInfo> {
     try {
       const response = await this.mailerService.sendMail({
         to: params.to_email,
-        from: process.env.ADMIN_EMAIL,
-        subject: 'Forgot password',
-        text: params.link,
+        from: process.env.SADMIN_EMAIL,
+        subject: params.subject,
+        text: params.text,
       });
       console.log('Email sent successfully:', response);
       return true;
