@@ -168,7 +168,7 @@ export class AuthService {
       username: user.username,
     };
     const tokens = await this.getTokens(payload);
-    const link = `${process.env.CLIENT_DOMAIN}/resetPassword/${user.id}/${tokens.refreshToken}`;
+    const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${tokens.refreshToken}`;
     const mailData: EmailTemplateParams = {
       to_name: user.username,
       to_email: forgotPasswordDto.email,
