@@ -141,4 +141,8 @@ export class UserService {
 
     user.lastActiveAt = new Date();
   }
+
+  async markEmailAsVerified(userId: number): Promise<void> {
+    await this.repository.update(userId, { verified: true });
+  }
 }

@@ -168,7 +168,7 @@ export class AuthService {
       username: user.username,
     };
     const tokens = await this.getTokens(payload);
-    const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${tokens.refreshToken}`;
+    const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${tokens.accessToken}`;
     const mailData: EmailTemplateParams = {
       to_name: user.username,
       to_email: forgotPasswordDto.email,
@@ -181,7 +181,7 @@ export class AuthService {
 З повагою,
 команда BookMe`,
     };
-    if (await this.mailService.sendPasswordEmail(mailData)) {
+    if (await this.mailService.sendEmail(mailData)) {
       return (
         HttpStatus.OK,
         'if you are registered, you will shortly receive reset email link'
@@ -210,7 +210,9 @@ export class AuthService {
         (HttpStatus.CONFLICT, "passwords don't match"),
       );
     const hashedPassword = await bcrypt.hash(passwordResetDto.password, 10);
-    await this.updatePassword(id, hashedPassword);
+    user.password = hashedPassword;
+    await this.userService.saveUser(hashedPassword);
+
     const mailData: EmailTemplateParams = {
       to_name: user.username,
       to_email: user.email,
@@ -219,7 +221,7 @@ export class AuthService {
       З повагою,
       команда BookMe`,
     };
-    if (await this.mailService.sendPasswordEmail(mailData)) {
+    if (await this.mailService.sendEmail(mailData)) {
       return (
         HttpStatus.OK,
         'if you are registered, you will shortly receive reset email link'
@@ -242,7 +244,10 @@ export class AuthService {
       throw new BadRequestException('Old password is incorrect');
     }
     const hashedPassword = await bcrypt.hash(passwordChangeDto.newPassword, 10);
-    await this.updatePassword(id, hashedPassword);
+
+    user.password = hashedPassword;
+    await this.userService.saveUser(hashedPassword);
+
     const mailData: EmailTemplateParams = {
       to_name: user.username,
       to_email: user.email,
@@ -251,7 +256,7 @@ export class AuthService {
       З повагою,
       команда BookMe`,
     };
-    if (await this.mailService.sendPasswordEmail(mailData)) {
+    if (await this.mailService.sendEmail(mailData)) {
       return (
         HttpStatus.OK,
         'if you are registered, you will shortly receive reset email link'
@@ -263,7 +268,8 @@ export class AuthService {
     );
   }
 
-  async updatePassword(id: number, newPassword: string) {
-    return this.userService.updateLoggedDate(id, newPassword);
-  }
+  // async updatePassword(id: number, newPassword: string) {
+  //   return this.userService.updateLoggedDate(id, newPassword);
+
+  // }
 }
