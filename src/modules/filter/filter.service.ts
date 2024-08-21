@@ -107,14 +107,4 @@ export class FilterService {
       maxPrice,
     };
   }
-
-  async getFilteredBooks(searchOnlyTitles: boolean = false) {
-    const books = await this.booksRepository.find();
-
-    if (searchOnlyTitles) {
-      return books.map((book) => ({ id: book.id, title: book.title }));
-    }
-
-    return books;
-  }
 }

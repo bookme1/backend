@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Transform } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsBoolean,
+} from 'class-validator';
 
 export enum Filter {
   pop,
@@ -127,6 +133,12 @@ export class FilterBookDto {
   @Transform(({ value }) => parseFloat(value))
   @IsNumber()
   maxPrice?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  selectTitleAndId?: boolean;
 }
 
 export class deliverDTO {
