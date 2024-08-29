@@ -353,9 +353,10 @@ export class BooksService {
     }
   }
 
-  async filterItems(
-    params: FilterBookDto,
-  ): Promise<{ quantity: number; books: Book[] }> {
+  async filterItems(params: FilterBookDto): Promise<{
+    quantity: number;
+    books: Partial<Pick<Book, 'referenceNumber' | 'title'>>[];
+  }> {
     try {
       const queryBuilder = this.booksRepository.createQueryBuilder('book');
 
@@ -413,8 +414,8 @@ export class BooksService {
       queryBuilder.skip(offset).take(pageSize);
 
       // If selectTitleAndId is true, select only id and title
-      if (params.selectTitleAndId) {
-        queryBuilder.select(['book.id', 'book.title']);
+      if (params.selectReferenceAndTitle) {
+        queryBuilder.select(['book.referenceNumber', 'book.title']);
       }
 
       const books = await queryBuilder.getMany();

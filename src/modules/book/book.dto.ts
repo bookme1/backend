@@ -138,7 +138,7 @@ export class FilterBookDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true')
   @IsBoolean()
-  selectTitleAndId?: boolean;
+  selectReferenceAndTitle?: boolean;
 }
 
 export class deliverDTO {
