@@ -4,9 +4,9 @@ import { Repository } from 'typeorm';
 import { Filter } from 'src/db/Filter';
 import { Book } from 'src/db/Book';
 
-interface GenreBook {
-  genre: string;
-}
+// interface GenreBook {
+//   genre: string;
+// }
 
 interface GenreNode {
   count: number;
