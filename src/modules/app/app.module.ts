@@ -10,6 +10,8 @@ import { FilterModule } from '../filter/filter.module';
 import { PingModule } from '../ping/ping.module';
 import { AdminModule } from '../admin/admin.module';
 import { OrderModule } from '../order/order.module';
+import { MailModule } from '../mail/mail.module';
+import { EmailVerificationModule } from '../email-verification/email-verification.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { OrderModule } from '../order/order.module';
     PingModule, // all operations to receive data from platform Elibri
     AdminModule, // all operations to send data to admin panel(users,books,operations, metrics)
     OrderModule,
+    MailModule,
+    EmailVerificationModule,
   ],
 })
 export class AppModule {

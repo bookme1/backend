@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Request,
@@ -14,6 +15,9 @@ import {
   EmailGoogleDto,
   EmailLoginDto,
   EmailSignupDto,
+  ForgotPasswordDto,
+  PasswordChangeDto,
+  PasswordResetDto,
 } from 'src/modules/auth/auth.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { constants } from 'src/config/constants';
@@ -63,5 +67,24 @@ export class AuthController {
   public refreshTokens(@Request() req: any) {
     const { id: userId } = req.user;
     return this.authService.refreshTokens(userId);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password/:id/:token')
+  resetPassord(
+    @Param('id') id: number,
+    @Param('token') token: string,
+    @Body() passwordResetDto: PasswordResetDto,
+  ) {
+    return this.authService.resetPassword(id, token, passwordResetDto);
+  }
+
+  @Post('change-password')
+  changePassword(@Body() id: number, passwordChangeDto: PasswordChangeDto) {
+    return this.authService.changePassword(id, passwordChangeDto);
   }
 }
