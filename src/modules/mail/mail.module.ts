@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MailService } from './mail.service';
 import { MailController } from './mail.controller';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigModule } from '@nestjs/config';
+import { EmailVerificationModule } from '../email-verification/email-verification.module';
+import { UsersModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { ConfigModule } from '@nestjs/config';
         },
       },
     }),
+    forwardRef(() => EmailVerificationModule),
+    UsersModule,
   ],
   controllers: [MailController],
   providers: [MailService],
