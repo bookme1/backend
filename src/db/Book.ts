@@ -1,6 +1,13 @@
 import { IsNotEmpty, IsString } from 'class-validator';
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  OneToMany,
+  ManyToMany,
+} from 'typeorm';
 import { OrderBook } from './OrderBook';
+import { Bookset } from 'src/modules/bookset/entities/bookset.entity';
 
 @Entity()
 //@Unique(['title'])
@@ -66,4 +73,7 @@ export class Book {
 
   @OneToMany(() => OrderBook, (orderBook) => orderBook.book)
   orderBooks: OrderBook[];
+
+  @ManyToMany(() => Bookset, (bookSet) => bookSet.books)
+  bookSets: Bookset[];
 }

@@ -12,6 +12,7 @@ import { AdminModule } from '../admin/admin.module';
 import { OrderModule } from '../order/order.module';
 import { MailModule } from '../mail/mail.module';
 import { EmailVerificationModule } from '../email-verification/email-verification.module';
+import { BooksetModule } from '../bookset/bookset.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { EmailVerificationModule } from '../email-verification/email-verificatio
     OrderModule,
     MailModule,
     EmailVerificationModule,
+    BooksetModule,
   ],
 })
 export class AppModule {
