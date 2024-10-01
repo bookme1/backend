@@ -50,6 +50,13 @@ export class OrderController {
       this.bookService.checkPaymentStatus(o.order_id);
     });
 
+    //Check all delievered whether they are succeed
+    const ordersPartiallySucceed =
+      await this.orderService.findAllDelievered(userId);
+    ordersPartiallySucceed.forEach((o) => {
+      this.orderService.checkDeliveryOrder(o.order_id);
+    });
+
     // Take all books from succeed orders
     const succeedOrders = await this.orderService.findAllSucceed(userId);
     return succeedOrders.flatMap((o) => o.orderBooks);

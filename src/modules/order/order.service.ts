@@ -100,6 +100,12 @@ export class OrderService {
     });
   }
 
+  async findAllDelievered(userId: number): Promise<Order[]> {
+    return await this.repository.find({
+      where: { user: { id: userId }, status: Status.Delievered },
+    });
+  }
+
   async findAllSucceed(userId: number): Promise<Order[]> {
     return await this.repository.find({
       where: { user: { id: userId }, status: Status.Succeed },
@@ -130,7 +136,7 @@ export class OrderService {
 
   async checkDeliveryOrder(orderId: string) {
     const order = await this.repository.findOne({
-      where: { id: Number(orderId) },
+      where: { order_id: orderId },
     });
 
     if (!order) return new BadRequestException("order wasn't found");
@@ -140,7 +146,7 @@ export class OrderService {
     );
 
     if (shouldStatusChange == -1) {
-      order.status == Status.Succeed;
+      order.status = Status.Succeed;
       this.repository.save(order);
       return true;
     }

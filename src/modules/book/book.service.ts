@@ -345,7 +345,7 @@ export class BooksService {
             console.error(error);
           }
         }
-      } while ((dumpedBooks.length = 30 || dumpedQuantity <= 500));
+      } while ((dumpedBooks.length == 30 || dumpedQuantity <= 500));
       return { message: 'Dump succeed!', quantity: dumpedQuantity };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
