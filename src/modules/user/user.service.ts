@@ -7,12 +7,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/db/User';
 import { BookType } from './user.dto';
+import { Book } from 'src/db/Book';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private repository: Repository<User>,
+    @InjectRepository(Book)
+    private booksRepository: Repository<Book>,
   ) {}
 
   findAll(): Promise<User[]> {
@@ -43,20 +46,24 @@ export class UserService {
     if (type == null) return new BadRequestException('Type is not provided');
 
     const user = await this.getById(userId);
+    const book = await this.booksRepository.findOne({ where: { id: bookId } });
+    if (!book) {
+      throw new NotFoundException('Book not found');
+    }
 
     // Set last user activity
     await this.updateLoggedDate(userId, '');
 
     if (type == BookType.Fav) {
-      if (user.fav.includes(bookId)) {
+      if (user.fav.some((b) => b.id === book.id)) {
         return new BadRequestException('Book already exists');
       }
-      user.fav.push(bookId);
+      user.fav.push(book);
     } else if (type == BookType.Cart) {
-      if (user.cart.includes(bookId)) {
+      if (user.cart.some((b) => b.id === book.id)) {
         return new BadRequestException('Book already exists');
       }
-      user.cart.push(bookId);
+      user.cart.push(book);
     }
 
     await this.repository.save(user);
@@ -71,15 +78,20 @@ export class UserService {
     // Set last user activity
     await this.updateLoggedDate(userId, '');
 
+    const book = await this.booksRepository.findOne({ where: { id: bookId } });
+    if (!book) {
+      throw new NotFoundException('Book not found');
+    }
+
     if (type == BookType.Fav) {
-      const index = user.fav.findIndex((val) => val === bookId);
+      const index = user.fav.findIndex((b) => b.id === book.id);
       if (index > -1) {
         user.fav.splice(index, 1);
       }
       await this.repository.save(user);
       return user.fav;
     } else if (type == BookType.Cart) {
-      const index = user.cart.findIndex((val) => val === bookId);
+      const index = user.cart.findIndex((b) => b.id === book.id);
       if (index > -1) {
         user.cart.splice(index, 1);
       }
