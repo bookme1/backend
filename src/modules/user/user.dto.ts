@@ -1,5 +1,6 @@
 import { Expose } from 'class-transformer';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
+import { Book } from 'src/db/Book';
 
 export enum BookType {
   Fav = 'Fav',
@@ -14,8 +15,12 @@ export class GetUserBooksDTO {
 
 export class UserBooksDTO {
   @Expose()
-  @IsNotEmpty()
-  bookId: string;
+  @IsOptional()
+  bookId?: string;
+
+  @Expose()
+  @IsOptional()
+  book?: Book;
 
   @Expose()
   @IsNotEmpty()
