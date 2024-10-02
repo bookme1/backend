@@ -345,7 +345,7 @@ export class BooksService {
             console.error(error);
           }
         }
-      } while ((dumpedBooks.length == 30 || dumpedQuantity <= 500));
+      } while (dumpedBooks.length == 30 || dumpedQuantity <= 500);
       return { message: 'Dump succeed!', quantity: dumpedQuantity };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
@@ -381,7 +381,8 @@ export class BooksService {
       }
       if (params.genre && params.genre.length > 0) {
         const genreConditions = params.genre.map(
-          (genre, index) => `book.genre ILIKE :genre_${index}`,
+          (genre, index) =>
+            `split_part(book.genre, ' / ', 2) ILIKE :genre_${index}`,
         );
         const genreParams = Object.fromEntries(
           params.genre.map((genre, index) => [`genre_${index}`, `%${genre}%`]),
