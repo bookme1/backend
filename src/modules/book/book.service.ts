@@ -80,7 +80,140 @@ export class BooksService {
     return `Digest username="${username}", realm="${authValues.realm}", nonce="${authValues.nonce}", uri="${uri}", response="${response}", qop=${authValues.qop}, nc=${nc}, cnonce="${cnonce}", opaque="${authValues.opaque}"`;
   }
 
-  async makeDigestRequest(host, path, method, username, password, postData) {
+  async makeDigestRequest(
+    host: string,
+    path: string,
+    method: string,
+    username: string,
+    password: string,
+    postData?: object,
+  ) {
+    return new Promise((resolve, reject) => {
+      const initialOptions = {
+        host: host,
+        path: path,
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+
+      const req = request(initialOptions, (res) => {
+        if (res.statusCode === 401) {
+          const wwwAuthenticate = res.headers['www-authenticate'];
+          const authValues = this.parseAuthenticateHeader(wwwAuthenticate);
+
+          const digestHeader = this.createDigestHeader(
+            authValues,
+            method,
+            path,
+            username,
+            password,
+          );
+
+          const authOptions = {
+            host: host,
+            path: path,
+            method: method,
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: digestHeader,
+            },
+          };
+
+          const authReq = request(authOptions, (res) => {
+            let body = '';
+            res.on('data', (d) => {
+              body += d;
+            });
+            res.on('end', async () => {
+              try {
+                console.log('Raw response body:', body); // Логируем тело ответа
+                const jsonResult = await convert.xml2json(body, {
+                  compact: true,
+                  spaces: 2,
+                });
+
+                console.log('Parsed response:', jsonResult);
+
+                if (!jsonResult || jsonResult.trim() === '') {
+                  // Если ответ пустой, возвращаем пустой массив
+                  resolve([]);
+                }
+
+                const parsedResult = JSON.parse(jsonResult);
+
+                // Проверяем наличие Product, если его нет, возвращаем пустой массив
+                if (parsedResult?.ONIXMessage?.Product) {
+                  resolve(parsedResult.ONIXMessage.Product);
+                } else {
+                  console.log(
+                    'ONIXMessage.Product не найдено, возвращаем пустой массив.',
+                  );
+                  resolve([]); // Возвращаем пустой массив, если Product не найден
+                }
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+
+          if (postData) {
+            // Логируем данные, которые отправляются на сервер
+            console.log('Отправка данных:', postData);
+            authReq.write(JSON.stringify(postData));
+          }
+
+          authReq.end();
+        } else if (res.statusCode >= 200 && res.statusCode < 300) {
+          let body = '';
+          res.on('data', (d) => {
+            body += d;
+          });
+          res.on('end', async () => {
+            try {
+              const jsonResult = await convert.xml2json(body, {
+                compact: true,
+                spaces: 2,
+              });
+
+              console.log('Parsed response:', jsonResult);
+
+              if (!jsonResult || jsonResult.trim() === '') {
+                throw new Error('Пустой ответ от сервера');
+              }
+
+              const parsedResult = JSON.parse(jsonResult);
+
+              if (parsedResult?.ONIXMessage?.Product) {
+                resolve(parsedResult.ONIXMessage.Product);
+              } else {
+                console.error(
+                  'ONIXMessage.Product не найдено в ответе:',
+                  parsedResult,
+                );
+                reject(new Error('ONIXMessage.Product не найдено'));
+              }
+            } catch (error) {
+              console.error('Ошибка при парсинге ответа:', error);
+              reject(error);
+            }
+          });
+        } else {
+          reject(new Error(`Unexpected status code: ${res.statusCode}`));
+        }
+      });
+
+      req.on('error', (error) => {
+        console.error('Ошибка запроса:', error);
+        reject(error);
+      });
+
+      req.end();
+    });
+  }
+
+  async makeDigestRequestWitouthData(host, path, method, username, password) {
     return new Promise((resolve, reject) => {
       const initialOptions = {
         host: host,
@@ -125,16 +258,12 @@ export class BooksService {
                   compact: true,
                   spaces: 2,
                 });
-                resolve(JSON.parse(jsonResult).ONIXMessage.Product);
+                resolve(JSON.parse(jsonResult));
               } catch (error) {
                 reject(error);
               }
             });
           });
-
-          if (postData) {
-            authReq.write(JSON.stringify(postData));
-          }
 
           authReq.end();
         } else {
@@ -262,8 +391,8 @@ export class BooksService {
   async updateBooksFromArthouse() {
     try {
       let dumpedBooks;
-      this.booksRepository.clear();
       let dumpedQuantity = 0;
+
       do {
         dumpedBooks = await this.makeDigestRequest(
           'platform.elibri.com.ua',
@@ -273,87 +402,173 @@ export class BooksService {
           '64db6ffd98a76c2b879c',
           { count: 30 },
         );
+
         for (let i = 0; i < dumpedBooks.length; i++) {
           const serviceBookObject = dumpedBooks[i];
-          const recordReference = serviceBookObject.RecordReference;
-          const descriptiveDetail = serviceBookObject.DescriptiveDetail;
-          const publishingDetail = serviceBookObject.PublishingDetail;
-          const collateralDetail = serviceBookObject.CollateralDetail;
-          const productSupply = serviceBookObject.ProductSupply;
-          const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text;
+
+          // Извлечение данных о книге из сервиса
+          const recordReference =
+            serviceBookObject?.RecordReference?._text || '';
+          const descriptiveDetail = serviceBookObject?.DescriptiveDetail || {};
+          const publishingDetail = serviceBookObject?.PublishingDetail || {};
+          const collateralDetail = serviceBookObject?.CollateralDetail || {};
+          const productSupply = serviceBookObject?.ProductSupply || {};
+
+          const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text || 0;
           const titleText =
             descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
-              ?._text ||
-            descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.TitleText
-              ?._text ||
-            descriptiveDetail?.TitleDetail?.TitleElement?.[0]?.TitleText
-              ?._text ||
-            descriptiveDetail?.TitleDetail?.TitleElement?.TitleText?._text;
-          const formats = this.addFormats(
-            serviceBookObject.ProductionDetail.ProductionManifest.BodyManifest
-              .BodyResource,
-          );
+              ?._text || 'Без назви';
+
+          const formats = serviceBookObject?.ProductionDetail
+            ?.ProductionManifest?.BodyManifest?.BodyResource
+            ? this.addFormats(
+                serviceBookObject.ProductionDetail.ProductionManifest
+                  .BodyManifest.BodyResource,
+              )
+            : {};
+
           const personName = [];
           if (descriptiveDetail.NoContributor) {
             personName.push('Без автора');
-          } else if (descriptiveDetail.Contributor.length) {
+          } else if (Array.isArray(descriptiveDetail.Contributor)) {
             descriptiveDetail.Contributor.forEach((el) => {
-              if (el.length) {
-                if (el[0].PersonName._text)
-                  personName.push(el[0].PersonName._text);
-              } else {
-                if (el.PersonName._text) personName.push(el.PersonName._text);
-              }
+              const name = Array.isArray(el)
+                ? el[0]?.PersonName?._text
+                : el?.PersonName?._text;
+              if (name) personName.push(name);
             });
           } else {
-            if (!descriptiveDetail.Contributor.UnnamedPersons) {
-              personName.push(descriptiveDetail.Contributor.PersonName._text);
+            const unnamedContributor =
+              descriptiveDetail?.Contributor?.UnnamedPersons || false;
+            if (!unnamedContributor) {
+              const personNameText =
+                descriptiveDetail?.Contributor?.PersonName?._text ||
+                'Без автора';
+              personName.push(personNameText);
             }
           }
-          const author = personName.join(', ');
-          const artificialTitle = titleText;
-          try {
-            let updBook = {
-              referenceNumber: recordReference._text,
-              art: '',
-              pages: pageCount || 0,
-              title: artificialTitle,
-              url: Array.isArray(collateralDetail.SupportingResource)
-                ? collateralDetail.SupportingResource[0].ResourceVersion
-                    .ResourceLink._text
-                : collateralDetail.SupportingResource.ResourceVersion
-                    .ResourceLink._text,
-              price: productSupply.SupplyDetail.Price.PriceAmount._text,
-              lang: Array.isArray(descriptiveDetail.Language)
-                ? descriptiveDetail.Language[0].LanguageCode._text
-                : descriptiveDetail.Language.LanguageCode._text,
-              desc: Array.isArray(collateralDetail.TextContent)
-                ? collateralDetail.TextContent[0].Text._cdata
-                : collateralDetail.TextContent.Text._cdata,
-              author: author,
-              pub: publishingDetail.Publisher.PublisherName._text,
-              pubDate: Array.isArray(publishingDetail.PublishingDate)
-                ? publishingDetail.PublishingDate[0].Date._text
-                : publishingDetail.PublishingDate.Date._text,
-              genre: Array.isArray(descriptiveDetail.Subject)
-                ? descriptiveDetail.Subject[0].SubjectHeadingText._text
-                : descriptiveDetail.Subject.SubjectHeadingText._text,
-              formatMobi: '',
-              formatPdf: '',
-              formatEpub: '',
-            };
-            updBook = Object.assign(updBook, formats);
-            this.saveBook(updBook);
-            dumpedQuantity += 1;
-          } catch (error) {
-            console.error(error);
+
+          const author = personName.join(', ') || 'Без автора';
+
+          const newBookData = {
+            referenceNumber: recordReference || '',
+            art: '',
+            pages: pageCount || 0,
+            title: titleText || 'Без назви',
+            url: Array.isArray(collateralDetail?.SupportingResource)
+              ? collateralDetail.SupportingResource[0]?.ResourceVersion
+                  ?.ResourceLink?._text || ''
+              : collateralDetail?.SupportingResource?.ResourceVersion
+                  ?.ResourceLink?._text || '',
+            price:
+              productSupply?.SupplyDetail?.Price?.PriceAmount?._text || '0',
+            lang: Array.isArray(descriptiveDetail?.Language)
+              ? descriptiveDetail.Language[0]?.LanguageCode?._text ||
+                'Немає інформації'
+              : descriptiveDetail?.Language?.LanguageCode?._text ||
+                'Немає інформації',
+            desc: Array.isArray(collateralDetail?.TextContent)
+              ? collateralDetail.TextContent[0]?.Text?._cdata || 'Без опису'
+              : collateralDetail?.TextContent?.Text?._cdata || 'Без опису',
+            author: author,
+            pub:
+              publishingDetail?.Publisher?.PublisherName?._text ||
+              'Автор невідомий',
+            pubDate: Array.isArray(publishingDetail?.PublishingDate)
+              ? publishingDetail.PublishingDate[0]?.Date?._text ||
+                'Немає інформації'
+              : publishingDetail?.PublishingDate?.Date?._text ||
+                'Немає інформації',
+            genre: Array.isArray(descriptiveDetail?.Subject)
+              ? descriptiveDetail.Subject[0]?.SubjectHeadingText?._text ||
+                'Жанр невідомий'
+              : descriptiveDetail?.Subject?.SubjectHeadingText?._text ||
+                'Жанр невідомий',
+            formatMobi: '',
+            formatPdf: '',
+            formatEpub: '',
+          };
+
+          // Объединение книги с форматами, если такие есть
+          const finalBookData = { ...newBookData, ...formats };
+
+          // 1. Проверка наличия книги по referenceNumber
+          const existingBook = await this.booksRepository.findOneBy({
+            referenceNumber: finalBookData.referenceNumber,
+          });
+
+          if (existingBook) {
+            // 2. Если книга найдена, обновляем original и кастомные данные
+            // Сравниваем оригинальные данные с новыми
+            const originalBook = existingBook.original;
+            const updatedOriginal = finalBookData;
+
+            // Обновляем оригинал
+            existingBook.original = updatedOriginal;
+
+            // Обновляем кастомные данные, если они совпадают с оригинальными
+            Object.keys(finalBookData).forEach((key) => {
+              if (existingBook[key] === originalBook[key]) {
+                existingBook[key] = finalBookData[key];
+              }
+            });
+
+            // Обновляем поле originalModifiedAt
+            existingBook.header.originalModifiedAt = new Date().toISOString();
+
+            await this.booksRepository.save(existingBook);
+          } else {
+            // 3. Если книга не найдена, добавляем новую
+            const newBook = this.booksRepository.create({
+              ...finalBookData,
+              original: finalBookData,
+              header: {
+                createdAt: new Date().toISOString(),
+                originalModifiedAt: new Date().toISOString(),
+              },
+            });
+
+            await this.booksRepository.save(newBook);
           }
+
+          dumpedQuantity += 1;
         }
-      } while ((dumpedBooks.length = 30 || dumpedQuantity <= 500));
-      return { message: 'Dump succeed!', quantity: dumpedQuantity };
+      } while (dumpedQuantity < 30 && dumpedBooks.length !== 0); // Пока есть данные, продолжаем обновление
+      return {
+        status: dumpedQuantity == 30 ? 201 : 204,
+        message: 'Chunk update succeed',
+        updated: dumpedQuantity,
+      };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
-      throw error; // Rethrow the error to handle it upstream
+
+      return {
+        status: 409,
+        message: 'Chunk update failed',
+        error,
+      };
+    }
+  }
+
+  async refillItemsQueue() {
+    try {
+      const response = await this.makeDigestRequestWitouthData(
+        'platform.elibri.com.ua',
+        '/api/v1/queues/refill_all',
+        'POST',
+        'bookme',
+        '64db6ffd98a76c2b879c',
+      );
+      return {
+        status: 201,
+        message: 'Refill queue succeed',
+      };
+    } catch (error) {
+      return {
+        status: 409,
+        message: 'Refill queue failed',
+        error,
+      };
     }
   }
 
@@ -385,7 +600,8 @@ export class BooksService {
       }
       if (params.genre && params.genre.length > 0) {
         const genreConditions = params.genre.map(
-          (genre, index) => `book.genre ILIKE :genre_${index}`,
+          (genre, index) =>
+            `split_part(book.genre, ' / ', 2) ILIKE :genre_${index}`,
         );
         const genreParams = Object.fromEntries(
           params.genre.map((genre, index) => [`genre_${index}`, `%${genre}%`]),

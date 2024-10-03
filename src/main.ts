@@ -3,22 +3,14 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './modules/app/app.module';
 import { getConfig } from './config';
 import { constants } from './config/constants';
-import * as fs from 'fs';
-import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
 const config = getConfig();
 
-const httpsOptions: HttpsOptions = {
-  key: fs.readFileSync(process.env.PRIVATE_KEY_PATH, 'utf8'), // Шлях береться з .env файлу
-  cert: fs.readFileSync(process.env.CERTIFICATE_PATH, 'utf8'), // Шлях береться з .env файлу
-};
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    httpsOptions,
     logger: ['log', 'error', 'warn', 'debug', 'fatal', 'verbose'],
   });
 

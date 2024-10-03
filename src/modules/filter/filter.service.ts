@@ -51,11 +51,13 @@ export class FilterService {
 
     // A function to convert the tree structure into an array of objects
     const treeToArray = (node: { [key: string]: GenreNode }) => {
-      return Object.entries(node).map(([genre, data]) => ({
-        genre,
-        count: data.count,
-        subgenres: treeToArray(data.subgenres),
-      }));
+      return Object.entries(node)
+        .filter(([genre]) => genre !== '' && !genre.includes('�')) // Filter out invalid genres
+        .map(([genre, data]) => ({
+          genre,
+          count: data.count,
+          subgenres: treeToArray(data.subgenres),
+        }));
     };
 
     return treeToArray(genreTree);
