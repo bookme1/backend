@@ -2,11 +2,42 @@ import { IsNotEmpty, IsString } from 'class-validator';
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { OrderBook } from './OrderBook';
 
+class OriginalBook {
+  referenceNumber: string;
+  art: string;
+  title: string;
+  url: string;
+  price: string;
+  pages: number;
+  lang: string;
+  desc: string;
+  author: string;
+  pub: string;
+  pubDate: string;
+  genre: string;
+  formatMobi: string;
+  formatPdf: string;
+  formatEpub: string;
+}
+
+class Header {
+  createdAt: string;
+  originalModifiedAt: string;
+  modifiedAt: string;
+  modifiedBy: number;
+}
+
 @Entity()
 //@Unique(['title'])
 export class Book {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'json', default: {} })
+  header: Header;
+
+  @Column({ type: 'json', default: {} })
+  original: OriginalBook;
 
   @Column({ default: '' })
   @IsString()

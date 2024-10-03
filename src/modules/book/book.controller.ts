@@ -75,9 +75,22 @@ export class BooksController {
   @Post('/updateBooksFromServer')
   public async updateBoooksFromArthouse() {
     try {
-      // const response = await this.bookService.updateBooksFromArthouse();
-      // console.log('Response:', response);
-      // return response;
+      const response = await this.bookService.updateBooksFromArthouse();
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      return error;
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/refillQueue')
+  public async refillQueue() {
+    try {
+      const response = await this.bookService.refillItemsQueue();
+      console.log('Response:', response);
+      return response;
     } catch (error) {
       console.error('Error:', error);
       throw error;
