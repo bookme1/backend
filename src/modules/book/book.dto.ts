@@ -76,6 +76,11 @@ export class FilterBookDto {
 
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
+  @IsString()
+  q?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
   @Transform(({ value }) =>
     Array.isArray(value)
       ? value

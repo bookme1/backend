@@ -31,7 +31,25 @@ export class BooksService {
   }
 
   async findOne(id: string) {
-    const book = await this.booksRepository.findOne({ where: { id } });
+    const book = await this.booksRepository.findOne({
+      where: { id },
+      select: [
+        'id',
+        'art',
+        'title',
+        'url',
+        'price',
+        'pages',
+        'lang',
+        'desc',
+        'author',
+        'pub',
+        'genre',
+        'formatEpub',
+        'formatMobi',
+        'formatPdf',
+      ],
+    });
     if (!book) {
       throw new NotFoundException(`Book with id ${id} not found`);
     }
@@ -373,7 +391,7 @@ export class BooksService {
       }
 
       // Получаем текстовое представление ответа
-      const textResponse = await response.text();
+      await response.text();
       console.log('Making status delievered!');
       order.status = Status.Delievered;
       await this.orderRepository.save(order);
@@ -548,7 +566,7 @@ export class BooksService {
 
   async refillItemsQueue() {
     try {
-      const response = await this.makeDigestRequestWitouthData(
+      await this.makeDigestRequestWitouthData(
         'platform.elibri.com.ua',
         '/api/v1/queues/refill_all',
         'POST',
@@ -575,7 +593,14 @@ export class BooksService {
     try {
       const queryBuilder = this.booksRepository.createQueryBuilder('book');
 
-      // Dynamic conditions of filtration
+      // Если задан параметр q, фильтруем по названию
+      if (params.q && params.q.trim() !== '') {
+        queryBuilder.andWhere('book.title ILIKE :q', {
+          q: `${params.q}%`, // Ищем книги, начинающиеся с q
+        });
+      }
+
+      // Фильтрация по авторам
       if (params.authors && params.authors.length > 0) {
         const authorsConditions = params.authors.map(
           (author, index) => `book.author ILIKE :author_${index}`,
@@ -586,14 +611,18 @@ export class BooksService {
             `%${author}%`,
           ]),
         );
+
+        // Добавляем условия авторов
         queryBuilder.andWhere(authorsConditions.join(' OR '), authorsParams);
       }
 
+      // Фильтрация по другим параметрам
       if (params.publishers && params.publishers.length > 0) {
         queryBuilder.andWhere('book.pub IN (:...publishers)', {
           publishers: params.publishers,
         });
       }
+
       if (params.genre && params.genre.length > 0) {
         const genreConditions = params.genre.map(
           (genre, index) =>
@@ -618,22 +647,23 @@ export class BooksService {
         });
       }
 
-      // Get total count of filtered books
+      // Получаем общее количество отфильтрованных книг
       const totalQuery = queryBuilder.clone();
       const quantity = await totalQuery.getCount();
 
-      // Implementing pagination
+      // Реализация пагинации
       const page = Number(params.page) || 1;
       const pageSize = 24;
       const offset = (page - 1) * pageSize;
 
       queryBuilder.skip(offset).take(pageSize);
 
-      // If selectTitleAndId is true, select only id and title
+      // Если selectedReferenceAndTitle true, выбираем только id и title
       if (params.selectReferenceAndTitle) {
         queryBuilder.select(['book.referenceNumber', 'book.title']);
       }
 
+      // Получаем книги
       const books = await queryBuilder.getMany();
 
       return { quantity, books };

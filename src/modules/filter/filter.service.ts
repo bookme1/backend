@@ -8,10 +8,10 @@ import { Book } from 'src/db/Book';
 //   genre: string;
 // }
 
-interface GenreNode {
-  count: number;
-  subgenres: { [key: string]: GenreNode };
-}
+// interface GenreNode {
+//   count: number;
+//   subgenres: { [key: string]: GenreNode };
+// }
 
 @Injectable()
 export class FilterService {
@@ -23,48 +23,68 @@ export class FilterService {
   ) {}
 
   async getGenres() {
-    const books: Book[] = await this.booksRepository.find();
+    const rawGenres = await this.booksRepository
+      .createQueryBuilder('book')
+      .select(
+        `
+      TRIM(BOTH FROM substring(book.genre from '^[^/]+')) AS main_genre, 
+      TRIM(BOTH FROM substring(book.genre from '[^/]+ / ([^/]+)')) AS sub_genre,
+      COUNT(book.id) as count
+    `,
+      ) // Получаем главный жанр и поджанр
+      .groupBy('main_genre, sub_genre') // Группируем по главному жанру и поджанру
+      .where(
+        "book.genre IS NOT NULL AND book.genre != '' AND book.genre NOT LIKE '%�%'",
+      ) // Фильтруем некорректные жанры
+      .getRawMany();
 
-    // Creating object for creating tree structure
-    const genreTree: { [key: string]: GenreNode } = {};
-
-    // Function for inserting nodes into tree object
-    const insertGenre = (
-      path: string[],
-      node: { [key: string]: GenreNode },
-    ) => {
-      const [head, ...tail] = path;
-      if (!node[head]) {
-        node[head] = { count: 0, subgenres: {} };
-      }
-      node[head].count += 1; // Increase books quantity in current level
-      if (tail.length > 0) {
-        insertGenre(tail, node[head].subgenres);
-      }
-    };
-
-    // Filling in tree structured object
-    books.forEach((book) => {
-      const path = book.genre.split(' / ');
-      insertGenre(path, genreTree);
-    });
-
-    // A function to convert the tree structure into an array of objects
-    const treeToArray = (node: { [key: string]: GenreNode }) => {
-      return Object.entries(node)
-        .filter(([genre]) => genre !== '' && !genre.includes('�')) // Filter out invalid genres
-        .map(([genre, data]) => ({
-          genre,
-          count: data.count,
-          subgenres: treeToArray(data.subgenres),
-        }));
-    };
-
-    return treeToArray(genreTree);
+    return this.buildGenreTree(rawGenres);
   }
 
-  async getFilters() {
-    const books = await this.booksRepository.find();
+  buildGenreTree(
+    rawGenres: { main_genre: string; sub_genre: string; count: number }[],
+  ) {
+    const genreTree = {};
+
+    rawGenres.forEach((row) => {
+      const { main_genre, sub_genre, count } = row;
+
+      if (!genreTree[main_genre]) {
+        genreTree[main_genre] = {
+          genre: main_genre,
+          count: 0,
+          children: [],
+        };
+      }
+
+      // Увеличиваем количество книг для главного жанра
+      genreTree[main_genre].count += Number(count);
+
+      // Добавляем поджанр, если он существует
+      if (sub_genre && sub_genre !== main_genre) {
+        genreTree[main_genre].children.push({
+          genre: sub_genre,
+          count: Number(count),
+        });
+      }
+    });
+
+    // Преобразуем объект в массив для возвращения
+    return Object.values(genreTree);
+  }
+
+  async getFilters(q: string) {
+    const queryBuilder = this.booksRepository.createQueryBuilder('book');
+
+    // Фильтруем книги, если q не пустой
+    if (q && q.trim() !== '') {
+      queryBuilder.where('LOWER(book.title) LIKE LOWER(:q)', {
+        q: `${q}%`, // Ищем книги, где title начинается с q
+      });
+    }
+
+    // Выполняем выборку нужных данных
+    const books = await queryBuilder.getMany();
 
     const authors = new Set<string>();
     const publishers = new Set<string>();
@@ -105,8 +125,8 @@ export class FilterService {
       publishers: uniquePublishers,
       genres: uniqueGenres,
       languages: uniqueLanguages,
-      minPrice,
-      maxPrice,
+      minPrice: minPrice === Infinity ? 0 : minPrice,
+      maxPrice: maxPrice === 0 ? 0 : maxPrice,
     };
   }
 }
