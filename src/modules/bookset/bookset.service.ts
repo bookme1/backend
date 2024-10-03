@@ -1,26 +1,72 @@
 import { Injectable } from '@nestjs/common';
 import { CreateBooksetDto } from './dto/create-bookset.dto';
 import { UpdateBooksetDto } from './dto/update-bookset.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Bookset } from './entities/bookset.entity';
+import { BooksService } from '../book/book.service';
 
 @Injectable()
 export class BooksetService {
-  create(createBooksetDto: CreateBooksetDto) {
-    return 'This action adds a new bookset';
+  constructor(
+    @InjectRepository(Bookset) private bookSetRepository: Repository<Bookset>,
+    private readonly booksService: BooksService,
+  ) {}
+
+  async createBookSet(createBooksetDto: CreateBooksetDto): Promise<Bookset> {
+    const { title, books, header } = createBooksetDto;
+
+    const bookEntities = await this.booksService.findBooksByIds(books);
+    const bookSet = this.bookSetRepository.create({
+      title,
+      books: bookEntities,
+      header: {
+        ...header,
+        createdAt: new Date(),
+      },
+    });
+    return this.bookSetRepository.save(bookSet);
   }
 
-  findAll() {
-    return `This action returns all bookset`;
+  async updateBookSet(
+    id: number,
+    updateBooksetDto: UpdateBooksetDto,
+  ): Promise<Bookset> {
+    const { title, books, header } = updateBooksetDto;
+
+    const bookSet = await this.bookSetRepository.findOne(id, {
+      relations: ['books'],
+    });
+
+    if (!bookSet) {
+      throw new Error('Book set not found');
+    }
+
+    if (title) {
+      bookSet.title = title;
+    }
+
+    if (books) {
+      const bookEntities = await this.booksService.findBooksByIds(books);
+      bookSet.books = bookEntities;
+    }
+
+    if (header.editedBy) {
+      bookSet.header.editedBy = header.editedBy;
+    }
+
+    return this.bookSetRepository.save(bookSet);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} bookset`;
+  async findAll(): Promise<Bookset[]> {
+    return this.bookSetRepository.find({ relations: ['books'] });
   }
 
-  update(id: number, updateBooksetDto: UpdateBooksetDto) {
-    return `This action updates a #${id} bookset`;
+  async findOne(id: string): Promise<Bookset> {
+    return this.bookSetRepository.findOne(id, { relations: ['books'] });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} bookset`;
+  async remove(id: number): Promise<void> {
+    await this.bookSetRepository.delete(id);
   }
 }

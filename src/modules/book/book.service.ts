@@ -30,6 +30,10 @@ export class BooksService {
     return this.booksRepository.find();
   }
 
+  async findBooksByIds(bookIds: number[]): Promise<Book[]> {
+    return this.booksRepository.findByIds(bookIds);
+  }
+
   async findOne(id: string) {
     const book = await this.booksRepository.findOne({ where: { id } });
     if (!book) {
