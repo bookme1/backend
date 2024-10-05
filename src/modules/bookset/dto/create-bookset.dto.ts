@@ -1,19 +1,16 @@
-import { IsArray, IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { IsArray, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateBooksetDto {
-     @IsString()
+  @IsString()
   @IsNotEmpty()
   title: string;
 
   @IsArray()
-  books: number[]; 
+  books: number[];
 
   @IsNotEmpty()
   header: {
-    @IsNumber()
     createdBy: number;
-
-    @IsNotEmpty()
     createdAt: Date;
   };
 }

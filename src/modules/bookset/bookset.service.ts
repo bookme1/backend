@@ -3,8 +3,8 @@ import { CreateBooksetDto } from './dto/create-bookset.dto';
 // import { UpdateBooksetDto } from './dto/update-bookset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Bookset } from './entities/bookset.entity';
 import { BooksService } from '../book/book.service';
+import { Bookset } from 'src/db/Bookset';
 
 @Injectable()
 export class BooksetService {

@@ -1,20 +1,16 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateBooksetDto } from './create-bookset.dto';
-import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
-export class UpdateBooksetDto extends PartialType(CreateBooksetDto) {
-       @IsOptional()
+export class UpdateBooksetDto {
+  @IsOptional()
   @IsString()
   title?: string;
 
   @IsOptional()
   @IsArray()
-  books?: number[];  
+  books?: number[];
 
   @IsOptional()
   header: {
-    @IsOptional()
-    @IsNumber()
     editedBy?: number;
   };
 }

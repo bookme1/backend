@@ -7,7 +7,7 @@ import {
   ManyToMany,
 } from 'typeorm';
 import { OrderBook } from './OrderBook';
-import { Bookset } from 'src/modules/bookset/entities/bookset.entity';
+import { Bookset } from 'src/db/Bookset';
 
 class OriginalBook {
   referenceNumber: string;
