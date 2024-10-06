@@ -38,6 +38,10 @@ export class BooksService {
     return book;
   }
 
+  async findBooksByIds(bookIds: any[]) {
+    return this.booksRepository.findOneByOrFail(bookIds);
+  }
+
   async findByParam(type: string, value: string) {
     const books = await this.booksRepository.find({
       where: { [type]: ILike(`%${value}%`) },
