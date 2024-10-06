@@ -28,6 +28,10 @@ lerna-debug.log*
 .settings/
 *.sublime-workspace
 
+# Docker things
+Dockerfile
+.yml
+
 # IDE - VSCode
 .vscode/*
 !.vscode/settings.json
