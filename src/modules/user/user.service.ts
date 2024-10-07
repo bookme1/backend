@@ -32,14 +32,27 @@ export class UserService {
   }
 
   async getUserBooks(type: BookType, userId: number) {
-    const user = await this.getById(userId);
     // Set last user activity
     await this.updateLoggedDate(userId, '');
 
-    if (type == BookType.Cart) return user.cart;
-    else if (type == BookType.Fav) return user.fav;
+    const queryBuilder = this.repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect(`user.${type.toLowerCase()}`, 'book') // join for bounded books
+      .where('user.id = :id', { id: userId })
+      .select([
+        'user.id',
+        'book.id',
+        'book.title', // Выбираем нужные поля из книги
+        'book.author',
+        'book.price',
+        'book.url',
+        'book.formatMobi',
+        'book.formatPdf',
+        'book.formatEpub',
+      ]);
 
-    return new BadRequestException();
+    // Выполняем запрос и возвращаем результат
+    return await queryBuilder.getOne();
   }
 
   async addUserBook(type: BookType, userId: number, bookId: string) {
