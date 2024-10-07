@@ -37,6 +37,13 @@ export class UsersController {
 
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth(constants.authPatternName)
+  @Get('/books/quantity/:type')
+  getUserBooksQuantity(@Request() req: any, @Param('type') type: BookType) {
+    return this.userService.getUserBooksQuantity(type, req.user.id);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
   @Get('/orderedBooks')
   getOrderedBooks(@Request() req: any) {
     return this.userService.getOrderedBooks(req.user.id);

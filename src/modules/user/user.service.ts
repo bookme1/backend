@@ -55,6 +55,21 @@ export class UserService {
     return await queryBuilder.getOne();
   }
 
+  async getUserBooksQuantity(type: BookType, userId: number): Promise<number> {
+    // Обновите дату последней активности пользователя
+    await this.updateLoggedDate(userId, '');
+
+    // Создайте запрос к таблице книг с подсчетом количества книг для пользователя
+    const countResult = await this.repository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect(`user.${type.toLowerCase()}`, 'book')
+      .where('user.id = :id', { id: userId })
+      .select('COUNT(*)', 'count') // Считайте количество
+      .getRawOne(); // Получите одно значение
+
+    return countResult ? Number(countResult.count) : 0; // Верните 0, если книг нет
+  }
+
   async addUserBook(type: BookType, userId: number, bookId: string) {
     if (type == null) return new BadRequestException('Type is not provided');
 
