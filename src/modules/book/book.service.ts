@@ -8,13 +8,15 @@ import { Repository, ILike } from 'typeorm';
 import { Book } from 'src/db/Book';
 import { FilterBookDto } from './book.dto';
 import { request } from 'https';
-import { createHash, createHmac, randomBytes } from 'crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'crypto';
 import * as convert from 'xml-js';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import * as qs from 'qs';
 import { Order } from 'src/db/Order';
 import { Status } from 'src/db/types';
+import { User } from 'src/db/User';
+import { OrderBook } from 'src/db/OrderBook';
 
 @Injectable()
 export class BooksService {
@@ -24,6 +26,8 @@ export class BooksService {
     private httpService: HttpService,
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   findAll(): Promise<Book[]> {
@@ -348,6 +352,86 @@ export class BooksService {
     } catch (error) {
       console.error('Ошибка при отправке запроса:', error.message);
     }
+  }
+
+  async cartWatermarking(order_id: string): Promise<string[]> {
+    if (!order_id) {
+      throw new BadRequestException('Order id is not provided');
+    }
+
+    const order = await this.orderRepository.findOne({
+      where: { order_id },
+      relations: ['orderBooks', 'orderBooks.book'], // Загружаем книги для orderBooks
+    });
+
+    if (!order) {
+      throw new BadRequestException('Order not found by that id');
+    }
+
+    const fetchModule = await import('node-fetch');
+    const fetch = fetchModule.default;
+
+    const updatedOrder = order;
+
+    // Проходимся по всем книгам заказа и создаем запросы на водяной знак
+    const watermarkPromises = order.orderBooks.map(async (orderBook, index) => {
+      const now = new Date();
+      const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
+
+      // Генерация HMAC для подписи
+      const secret = '1b41d378b24738917d314dff5c816b61';
+      const hmac = createHmac('sha1', unixTimestamp);
+      const hmacDigest = hmac.update(secret).digest('base64');
+      const sig = encodeURIComponent(hmacDigest);
+
+      const bookFormats: string[] = [];
+      if (orderBook.book.formatEpub) bookFormats.push('epub');
+      if (orderBook.book.formatMobi) bookFormats.push('mobi');
+      if (orderBook.book.formatPdf) bookFormats.push('pdf');
+
+      const data = {
+        record_reference: orderBook.book.referenceNumber,
+        formats: bookFormats.join(','),
+        visible_watermark: `Цю книгу купив користувач: user@domain.com (Замовлення № ${order_id}, b3258, ${now.toISOString()})`,
+        stamp: unixTimestamp,
+        sig: sig,
+        token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+      };
+
+      try {
+        const url = 'https://platform.elibri.com.ua/watermarking/watermark';
+        const response = await fetch(url, {
+          method: 'POST',
+          body: new URLSearchParams(data as Record<string, string>),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const transactionId = await response.text();
+
+        // Обновляем транзакционный ID в `OrderBook`
+        orderBook.transId = transactionId;
+        orderBook.orderedFormats = bookFormats.join(',');
+
+        updatedOrder.orderBooks[index] = orderBook;
+
+        return transactionId;
+      } catch (error) {
+        console.error('Ошибка при отправке запроса:', error.message);
+        throw error;
+      }
+    });
+
+    await this.orderRepository.update(order_id, updatedOrder); // Сохраняем обновленный OrderBook
+
+    // Дожидаемся выполнения всех запросов
+    const transactionIds = await Promise.all(watermarkPromises);
+    return transactionIds; // Возвращаем массив transaction_id для всех книг
   }
 
   async deliver(transactionId: string): Promise<string> {
@@ -693,7 +777,14 @@ export class BooksService {
     await this.booksRepository.delete(id);
   }
 
-  generateSignature(params: any): { data: string; signature: string } {
+  generateSignature(
+    params: any,
+    order_id: string,
+  ): {
+    data: string;
+    signature: string;
+    order_id: string;
+  } {
     const data = Buffer.from(JSON.stringify(params)).toString('base64');
     const signature = createHash('sha1')
       .update(
@@ -702,7 +793,7 @@ export class BooksService {
           'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW',
       )
       .digest('base64');
-    return { data, signature };
+    return { data, signature, order_id };
   }
 
   testCheckout(
@@ -724,7 +815,65 @@ export class BooksService {
       sandbox: 1,
     };
 
-    return this.generateSignature(params);
+    return this.generateSignature(params, order_id);
+  }
+
+  async checkout(user_id: number): Promise<{
+    data: string;
+    signature: string;
+    order_id: string;
+  }> {
+    const order_id = randomUUID();
+    const description =
+      'Оплата за книги в магазині Bookme, ФОП Науменко Михайло Вікторович. ';
+    const params = {
+      public_key: 'sandbox_i70460379180',
+      version: '3',
+      action: 'pay',
+      amount: 0,
+      currency: 'UAH',
+      description: description + 'Ідентифікатор замовлення: ' + order_id,
+      order_id: order_id,
+      sandbox: 1,
+    };
+
+    // save new order
+    const user = await this.userRepository.findOne({
+      where: { id: user_id },
+      relations: ['cart'], // Загрузка связанных книг в корзине пользователя
+    });
+
+    if (!user || !user.cart.length) {
+      throw new Error('User or cart not found');
+    }
+
+    // Создаем заказ
+    const order = new Order();
+    order.order_id = order_id;
+    order.status = Status.Created;
+    order.createdAt = new Date();
+    order.user = user; // Устанавливаем пользователя для этого заказа
+
+    // Добавляем книги из корзины в orderBooks
+    let amount = 0;
+    order.orderBooks = user.cart.map((book) => {
+      amount += Number(book.price);
+      const orderBook = new OrderBook();
+      orderBook.order = order;
+      orderBook.book = book;
+      orderBook.orderedFormats = ''; // Пример формата, можно получить из данных
+      orderBook.transId = ''; // Идентификатор транзакции, уникальный для каждой книги. Creating by watermarking
+      orderBook.status = Status.Created;
+      return orderBook;
+    });
+
+    order.amount = amount;
+    params.amount = amount;
+
+    // Сохраняем заказ вместе с книгами
+    await this.orderRepository.save(order);
+
+    return this.generateSignature(params, order_id);
   }
 
   public addFormats(BodyResource: any) {

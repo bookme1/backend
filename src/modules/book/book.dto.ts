@@ -158,3 +158,8 @@ export class WatermarkDTO {
   @Expose()
   order_id: string;
 }
+
+export class CartWatermarkDTO {
+  @Expose()
+  order_id: string;
+}

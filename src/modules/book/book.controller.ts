@@ -9,18 +9,23 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
   UsePipes,
   ValidationPipe,
+  Request,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BooksService } from './book.service';
 import {
+  CartWatermarkDTO,
   deliverDTO,
   EditBookDto,
   FilterBookDto,
   SaveBookDto,
   WatermarkDTO,
 } from './book.dto';
+import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
+import { constants } from 'src/config/constants';
 
 @ApiTags('book')
 @Controller('api/book')
@@ -115,6 +120,20 @@ export class BooksController {
     }
   }
 
+  //Make it private!!! only for registered users
+  @Post('/cart-watermarking')
+  public async makeCartWatermark(
+    @Body()
+    body: CartWatermarkDTO,
+  ) {
+    try {
+      const response = await this.bookService.cartWatermarking(body.order_id);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Post('/deliver')
   public async makeDeliver(@Body() transactionId: deliverDTO) {
     try {
@@ -171,6 +190,21 @@ export class BooksController {
         order_id,
         description,
       );
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/cart-checkout')
+  public async makeCartCheckout(@Request() req: any) {
+    try {
+      const response = await this.bookService.checkout(req.user.id);
       console.log('Response:', response);
       return response;
     } catch (error) {

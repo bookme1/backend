@@ -1,0 +1,60 @@
+networks:
+  bookme_network:
+    driver: bridge
+
+
+x-common-config: &common
+  restart: unless-stopped
+  networks:
+    - bookme_network
+
+
+services:
+  proxy:
+    container_name: proxy
+    build:
+      context: ./nginx/
+      dockerfile: Dockerfile
+    <<: [ *common ]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./nginx/certs:/etc/nginx/certs:ro"
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend/
+      dockerfile: Dockerfile
+    <<: [ *common ]
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+
+  backend:
+    container_name: backend
+    build:
+      context: ./backend/
+      dockerfile: Dockerfile
+    <<: [ *common ]
+    expose:
+      - "5050"
+    env_file:
+      - ./backend/.env
+
+  redis:
+    image: redis
+    command: /bin/sh -c "redis-server --requirepass $$REDIS_PASS"
+    env_file:
+      - .env
+    ports:
+      - 6379:6379
+    volumes:
+      - ./redis/data:/data
