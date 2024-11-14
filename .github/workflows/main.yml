@@ -31,7 +31,8 @@ jobs:
           mkdir deploy
           cp -r dist deploy/  # Copy compiled code
           cp package.json package-lock.json deploy/  # Copy package files for dependencies
-          cp .env deploy/  # Copy environment variables (if needed)
+          # Copy .env if it exists
+          if [ -f .env ]; then cp .env deploy/; fi
           # Add any other necessary files
 
       # Deploy backend in route /bookme/server
