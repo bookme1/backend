@@ -4,7 +4,6 @@ import { AppModule } from './modules/app/app.module';
 import { getConfig } from './config';
 import { constants } from './config/constants';
 import * as dotenv from 'dotenv';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 dotenv.config();
 

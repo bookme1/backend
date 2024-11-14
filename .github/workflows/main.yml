@@ -25,12 +25,12 @@ jobs:
           npm install
           npm run build
 
-      # Deploy backend in route /bookme/backend
-      - name: 📂 Deploy Backend to /bookme/backend
+      # Deploy backend in route /bookme/server
+      - name: 📂 Deploy Backend to /bookme/server
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: /bookme/backend/
+          server-dir: /server/
