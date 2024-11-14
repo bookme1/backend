@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir deploy
           cp -r dist deploy/  # Copy compiled code
-          cp package.json package-lock.json deploy/  # Copy package files for dependencies
+          cp package.json package-lock.json tsconfig.json nest-cli.json tsconfig.build.json deploy/  # Copy package files for dependencies
           # Copy .env if it exists
           if [ -f .env ]; then cp .env deploy/; fi
           # Add any other necessary files
