@@ -20,23 +20,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 🔨 Build Backend Project
-        run: |
-          npm install
-          npm run build
-
-      # Copy necessary files to deploy folder, excluding unnecessary ones
+      # Prepare deployable files, excluding files in .gitignore
       - name: Prepare Deployable Files
         run: |
           mkdir deploy
-          cp -r dist deploy/  # Copy compiled code
-          cp package.json package-lock.json tsconfig.json nest-cli.json tsconfig.build.json deploy/  # Copy package files for dependencies
-          # Copy .env if it exists
-          if [ -f .env ]; then cp .env deploy/; fi
-          # Add any other necessary files
+          git archive HEAD | tar -x -C deploy  # Copies all tracked files, excluding .gitignore files
 
-      # Deploy backend in route /bookme/server
-      - name: 📂 Deploy Backend to /bookme/server
+      # Deploy backend project (source code only) to /bookme/server
+      - name: 📂 Deploy Backend Source to /bookme/server
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -44,3 +35,16 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./deploy/
           server-dir: /server/
+
+      # Install dependencies, build, and start the backend on the server
+      - name: 🛠️ Build and Start Backend on Server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          cd /server
+          npm install
+          npm run build  # Compile TypeScript into dist folder
+          npm run start:prod  # Start backend in production mode
+          EOF
+        env:
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
