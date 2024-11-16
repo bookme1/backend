@@ -1,50 +1,46 @@
-# .github/workflows/deploy-backend.yml
+name: 🚀 Deploy Backend on Push
 
 on:
   push:
     branches:
       - main
 
-name: 🚀 Deploy Backend on Push
-
 jobs:
   backend-deploy:
     name: 🎉 Deploy Backend
     runs-on: ubuntu-latest
     steps:
+      # Step 1: Cloning repo
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
 
-      - name: Use Node.js 20
-        uses: actions/setup-node@v2
-        with:
-          node-version: '20'
-
-      # Prepare deployable files, excluding files in .gitignore
-      - name: Prepare Deployable Files
+      # Step 2: Build Docker image
+      - name: 🔨 Build Docker Image
         run: |
-          mkdir deploy
-          git archive HEAD | tar -x -C deploy  # Copies all tracked files, excluding .gitignore files
+          docker build -t my-backend:latest .
 
-      # Deploy backend project (source code only) to /bookme/server
-      - name: 📂 Deploy Backend Source to /bookme/server
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./deploy/
-          server-dir: /server/
-
-      # Install dependencies, build, and start the backend on the server
-      - name: 🛠️ Build and Start Backend on Server
+      # Step 3: Add server to known_hosts
+      - name: Add server to known_hosts
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          cd /server
-          npm install
-          npm run build  # Compile TypeScript into dist folder
-          npm run start:prod  # Start backend in production mode
-          EOF
-        env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # Step 4: Set SSH for connection
+      - name: 🔑 Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Step 5: Send Docker Image to server
+      - name: 🚀 Push Docker Image to server
+        run: |
+          docker save my-backend:latest | ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} "docker load"
+
+      # Step 6: Restart container on server
+      - name: 🔄 Restart Docker Container
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} "
+          docker stop backend-container || true &&
+          docker rm backend-container || true &&
+          docker run -d --name backend-container -p 5050:5050 my-backend:latest
+          "

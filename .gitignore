@@ -29,7 +29,6 @@ lerna-debug.log*
 *.sublime-workspace
 
 # Docker things
-Dockerfile
 .yml
 
 # IDE - VSCode
