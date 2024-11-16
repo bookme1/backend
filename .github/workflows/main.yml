@@ -34,12 +34,12 @@ jobs:
       # Step 5: Send Docker Image to server
       - name: 🚀 Push Docker Image to server
         run: |
-          docker save my-backend:latest | ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} "docker load"
+          docker save my-backend:latest | ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "docker load"
 
       # Step 6: Restart container on server
       - name: 🔄 Restart Docker Container
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} "
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
           docker stop backend-container || true &&
           docker rm backend-container || true &&
           docker run -d --name backend-container -p 5050:5050 my-backend:latest
