@@ -44,3 +44,10 @@ jobs:
           docker rm backend-container || true &&
           docker run -d --name backend-container -p 5050:5050 my-backend:latest
           "
+
+      # Step 7: Add .env
+      - name: 🔑 Add .env file to server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+          echo '${{ secrets.ENV_FILE }}' > /home/adminmykhailo/bookme/server/.env
+          "
