@@ -31,23 +31,23 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Step 5: Send Docker Image to server
+      # Step 5: Add .env
+      - name: 🔑 Add .env file to server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+          echo '${{ secrets.ENV_FILE }}' > /home/adminmykhailo/bookme/server/.env
+          "
+
+      # Step 6: Send Docker Image to server
       - name: 🚀 Push Docker Image to server
         run: |
           docker save my-backend:latest | ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "docker load"
 
-      # Step 6: Restart container on server
+      # Step 7: Restart container on server
       - name: 🔄 Restart Docker Container
         run: |
           ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
           docker stop backend-container || true &&
           docker rm backend-container || true &&
           docker run -d --name backend-container -p 5050:5050 my-backend:latest
-          "
-
-      # Step 7: Add .env
-      - name: 🔑 Add .env file to server
-        run: |
-          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
-          echo '${{ secrets.ENV_FILE }}' > /home/adminmykhailo/bookme/server/.env
           "
