@@ -49,12 +49,12 @@ services:
     env_file:
       - ./backend/.env
 
-  redis:
-    image: redis
-    command: /bin/sh -c "redis-server --requirepass $$REDIS_PASS"
-    env_file:
-      - .env
-    ports:
-      - 6379:6379
-    volumes:
-      - ./redis/data:/data
+  # redis:
+  #   image: redis
+  #   command: /bin/sh -c "redis-server --requirepass $$REDIS_PASS"
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - 6379:6379
+  #   volumes:
+  #     - ./redis/data:/data

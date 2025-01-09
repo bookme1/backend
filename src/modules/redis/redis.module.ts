@@ -9,7 +9,7 @@ import { RedisService } from './redis.service';
     CacheModule.registerAsync({
       useFactory: async (configService: ConfigService) => ({
         store: await redisStore({
-          url: 'redis://default:towuuwj1s1OZXWgJVRg3JgrCUU3HvEeJ@redis-13522.c300.eu-central-1-1.ec2.redns.redis-cloud.com:13522',
+          url: 'redis://default:vZjAoyTCHKVGcpZp0Zz69S2pnwTLFzAX@redis-16809.c293.eu-central-1-1.ec2.redns.redis-cloud.com:16809',
           ttl: 5000,
         }),
       }),

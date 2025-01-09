@@ -11,7 +11,7 @@ import { request } from 'https';
 import { createHash, createHmac, randomBytes, randomUUID } from 'crypto';
 import * as convert from 'xml-js';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import * as qs from 'qs';
 import { Order } from 'src/db/Order';
 import { Status } from 'src/db/types';
@@ -28,6 +28,8 @@ export class BooksService {
     private orderRepository: Repository<Order>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(OrderBook)
+    private orderBookRepository: Repository<OrderBook>,
   ) {}
 
   findAll(): Promise<Book[]> {
@@ -331,7 +333,6 @@ export class BooksService {
     try {
       const fetchModule = await import('node-fetch');
       const fetch = fetchModule.default;
-
       const url = 'https://platform.elibri.com.ua/watermarking/watermark';
       const response = await fetch(url, {
         method: 'POST',
@@ -350,7 +351,7 @@ export class BooksService {
       console.log('Текстовый ответ от сервера:', textResponse);
       return textResponse;
     } catch (error) {
-      console.error('Ошибка при отправке запроса:', error.message);
+      console.error('Ошибка при отправке запроса1:', error.message);
     }
   }
 
@@ -358,23 +359,30 @@ export class BooksService {
     if (!order_id) {
       throw new BadRequestException('Order id is not provided');
     }
-
+    console.error('1');
     const order = await this.orderRepository.findOne({
       where: { order_id },
       relations: ['orderBooks', 'orderBooks.book'], // Загружаем книги для orderBooks
     });
-
+    console.error('2');
     if (!order) {
       throw new BadRequestException('Order not found by that id');
     }
-
+    console.error('3');
     const fetchModule = await import('node-fetch');
     const fetch = fetchModule.default;
 
     const updatedOrder = order;
+    console.error('4');
 
-    // Проходимся по всем книгам заказа и создаем запросы на водяной знак
-    const watermarkPromises = order.orderBooks.map(async (orderBook, index) => {
+    // Функция задержки
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+
+    const transactionIds: string[] = [];
+
+    // Используем for...of вместо map для последовательной обработки с задержкой
+    for (const [index, orderBook] of order.orderBooks.entries()) {
       const now = new Date();
       const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
@@ -417,20 +425,25 @@ export class BooksService {
         // Обновляем транзакционный ID в `OrderBook`
         orderBook.transId = transactionId;
         orderBook.orderedFormats = bookFormats.join(',');
-
         updatedOrder.orderBooks[index] = orderBook;
 
-        return transactionId;
+        console.error('book succeed watermarked');
+        transactionIds.push(transactionId);
       } catch (error) {
         console.error('Ошибка при отправке запроса:', error.message);
         throw error;
       }
+
+      // Задержка 5 секунд перед следующим запросом
+      await delay(60500);
+    }
+
+    console.error('7');
+    updatedOrder.orderBooks.map(async (orderBook) => {
+      await this.orderBookRepository.update(orderBook.id, orderBook);
     });
 
-    await this.orderRepository.update(order_id, updatedOrder); // Сохраняем обновленный OrderBook
-
-    // Дожидаемся выполнения всех запросов
-    const transactionIds = await Promise.all(watermarkPromises);
+    console.error('8');
     return transactionIds; // Возвращаем массив transaction_id для всех книг
   }
 
@@ -486,7 +499,7 @@ export class BooksService {
 
       return 'OK';
     } catch (error) {
-      console.error('Ошибка при отправке запроса:', error.message);
+      console.error('Ошибка при отправке запроса3:', error.message);
     }
   }
 
@@ -872,8 +885,13 @@ export class BooksService {
 
     // Сохраняем заказ вместе с книгами
     await this.orderRepository.save(order);
+    try {
+      await this.cartWatermarking(order.order_id);
 
-    return this.generateSignature(params, order_id);
+      return this.generateSignature(params, order_id);
+    } catch (e) {
+      throw new Error(e.message);
+    }
   }
 
   public addFormats(BodyResource: any) {

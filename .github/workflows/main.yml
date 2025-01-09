@@ -43,7 +43,7 @@ jobs:
           echo '${{ secrets.ENV_FILE }}' > /home/adminmykhailo/bookme/server/.env
           "
 
-      # Step 7: Restart container on server
+      # Step 8: Restart container on server
       - name: 🔄 Restart Docker Container
         run: |
           ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
