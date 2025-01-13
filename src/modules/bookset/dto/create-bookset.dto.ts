@@ -6,7 +6,7 @@ export class CreateBooksetDto {
   title: string;
 
   @IsArray()
-  books: number[];
+  books: string[];
 
   @IsNotEmpty()
   header: {

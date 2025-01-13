@@ -7,7 +7,7 @@ export class UpdateBooksetDto {
 
   @IsOptional()
   @IsArray()
-  books?: number[];
+  books?: string[];
 
   @IsOptional()
   header: {

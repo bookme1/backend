@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateBooksetDto } from './dto/create-bookset.dto';
 // import { UpdateBooksetDto } from './dto/update-bookset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { BooksService } from '../book/book.service';
 import { Bookset } from 'src/db/Bookset';
+import { UpdateBooksetDto } from './dto/update-bookset.dto';
 
 @Injectable()
 export class BooksetService {
@@ -17,7 +18,7 @@ export class BooksetService {
     const { title, books, header } = createBooksetDto;
 
     const bookEntities = await this.booksService.findBooksByIds(books);
-    const bookSet = this.bookSetRepository.create({
+    const bookSet = await this.bookSetRepository.create({
       title,
       books: bookEntities,
       header: {
@@ -25,46 +26,75 @@ export class BooksetService {
         createdAt: new Date(),
       },
     });
-    return this.bookSetRepository.save(bookSet);
+
+    bookSet.books = bookEntities;
+
+    return await this.bookSetRepository.save(bookSet);
   }
 
-  // async updateBookSet(
-  //   id: number,
-  //   updateBooksetDto: UpdateBooksetDto,
-  // ): Promise<Bookset> {
-  //   const { title, books, header } = updateBooksetDto;
-
-  //   const bookSet = await this.bookSetRepository.findOne(id, {
-  //     relations: ['books'],
-  //   });
-
-  //   if (!bookSet) {
-  //     throw new Error('Book set not found');
-  //   }
-
-  //   if (title) {
-  //     bookSet.title = title;
-  //   }
-
-  //   if (books) {
-  //     const bookEntities = await this.booksService.findBooksByIds(books);
-  //     bookSet.books = bookEntities;
-  //   }
-
-  //   if (header.editedBy) {
-  //     bookSet.header.editedBy = header.editedBy;
-  //   }
-
-  //   return this.bookSetRepository.save(bookSet);
-  // }
+  async updateBookSet(
+    id: number,
+    updateBooksetDto: UpdateBooksetDto,
+  ): Promise<Bookset> {
+    const { title, books, header } = updateBooksetDto;
+  
+    // check if bookset exists
+    const bookSet = await this.bookSetRepository.findOne({
+      where: { id },
+      relations: ['books'],
+    });
+  
+    if (!bookSet) {
+      throw new NotFoundException(`Book set with ID ${id} not found`);
+    }
+  
+    // Start transaction
+    await this.bookSetRepository.manager.transaction(
+      async (entityManager: EntityManager) => {
+        // Update title
+        if (title) {
+          bookSet.title = title;
+        }
+  
+        // Update books
+        if (books && books.length > 0) {
+          const bookEntities = await this.booksService.findBooksByIds(books);
+  
+          if (bookEntities.length !== books.length) {
+            throw new BadRequestException('One or more books were not found');
+          }
+  
+          bookSet.books = bookEntities;
+        }
+  
+        // Update header
+        bookSet.header.editedBy = header?.editedBy || bookSet.header.editedBy;
+        bookSet.header.editedAt = new Date();
+  
+        // Save changes
+        await entityManager.save(bookSet);
+      },
+    );
+  
+    // Return updated bookset
+    return this.bookSetRepository.findOne({
+      where: { id },
+      relations: ['books'],
+    });
+  }
 
   async findAll(): Promise<Bookset[]> {
-    return this.bookSetRepository.find({ relations: ['books'] });
+    return this.bookSetRepository.find({
+      relations: ['books'],
+    });
   }
 
-  // async findOne(id: string): Promise<Bookset> {
-  //   return this.bookSetRepository.findOne(id, { relations: ['books'] });
-  // }
+  async findOne(id: number): Promise<Bookset> {
+    return this.bookSetRepository.findOne({
+      where: { id },
+      relations: ['books'],
+    });
+  }
 
   async remove(id: number): Promise<void> {
     await this.bookSetRepository.delete(id);

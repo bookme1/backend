@@ -4,14 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, In } from 'typeorm';
 import { Book } from 'src/db/Book';
 import { FilterBookDto } from './book.dto';
 import { request } from 'https';
 import { createHash, createHmac, randomBytes, randomUUID } from 'crypto';
 import * as convert from 'xml-js';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom, timeout } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import * as qs from 'qs';
 import { Order } from 'src/db/Order';
 import { Status } from 'src/db/types';
@@ -36,8 +36,10 @@ export class BooksService {
     return this.booksRepository.find();
   }
 
-  async findBooksByIds(bookIds: number[]): Promise<Book[]> {
-    return this.booksRepository.findByIds(bookIds);
+  async findBooksByIds(bookIds: string[]): Promise<Book[]> {
+    return this.booksRepository.find({
+      where: { id: In(bookIds) },
+    });
   }
 
   async findOne(id: string) {

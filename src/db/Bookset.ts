@@ -16,7 +16,7 @@ export class Bookset {
   @Column()
   title: string;
 
-  @ManyToMany(() => Book, (book) => book.bookSets)
+  @ManyToMany(() => Book, (book) => book.bookSets, { cascade: true })
   @JoinTable()
   books: Book[];
 
