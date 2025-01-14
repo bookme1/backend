@@ -114,30 +114,8 @@ export class AuthService {
       // Set last user activity
       await this.userService.updateLoggedDate(undefined, email);
 
-
-      // const mailData: EmailTemplateParams = {
-      //   to_email: email,
-      //   subject: 'Верифікація акаунта BookMe',
-      //   text: `Шановний користувач, для веріфікації акаунта перейдіть за посиланням: ,
-      //           "ТУТ БУДЕТ ССЫЛКА"
-      //         З повагою,
-      //         команда BookMe`,
-      // };
       const user = await this.userService.getByEmail(email);
       await this.mailService.sendVerificationEmail(user.id)
-
-      // if (await this.mailService.sendEmail(mailData)) {
-      //   return (
-         
-      //     HttpStatus.OK,
-      //     'Verification e-mail was sened successfully'
-      //   );
-      // }
-      // throw new ServiceUnavailableException(
-      //   HttpStatus.SERVICE_UNAVAILABLE,
-      //   'Service is unavailable',
-      // );
-
 
       return response;
     } catch (error) {
