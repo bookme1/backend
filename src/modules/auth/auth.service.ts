@@ -30,7 +30,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   async loginEmail(email: string, password: string) {
     const user = await this.userService.getByEmail(email);
@@ -113,6 +113,9 @@ export class AuthService {
 
       // Set last user activity
       await this.userService.updateLoggedDate(undefined, email);
+
+      const user = await this.userService.getByEmail(email);
+      await this.mailService.sendVerificationEmail(user.id)
 
       return response;
     } catch (error) {
