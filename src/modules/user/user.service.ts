@@ -26,14 +26,14 @@ export class UserService {
     const user = await this.getById(userId);
 
     // Set last user activity
-    await this.updateLoggedDate(userId, '');
+    await this.updateLoggedDate(userId);
 
     return { ...this.removePasswordFromUser(user) };
   }
 
   async getUserBooks(type: BookType, userId: number) {
     // Set last user activity
-    await this.updateLoggedDate(userId, '');
+    await this.updateLoggedDate(userId);
 
     const queryBuilder = this.repository
       .createQueryBuilder('user')
@@ -57,7 +57,7 @@ export class UserService {
 
   async getUserBooksQuantity(type: BookType, userId: number): Promise<number> {
     // Обновите дату последней активности пользователя
-    await this.updateLoggedDate(userId, '');
+    await this.updateLoggedDate(userId);
 
     // Создайте запрос к таблице книг с подсчетом количества книг для пользователя
     const countResult = await this.repository
@@ -80,7 +80,7 @@ export class UserService {
     }
 
     // Set last user activity
-    await this.updateLoggedDate(userId, '');
+    await this.updateLoggedDate(userId);
 
     if (type == BookType.Fav) {
       if (user.fav.some((b) => b.id === book.id)) {
@@ -104,7 +104,7 @@ export class UserService {
     const user = await this.getById(userId);
 
     // Set last user activity
-    await this.updateLoggedDate(userId, '');
+    await this.updateLoggedDate(userId);
 
     const book = await this.booksRepository.findOne({ where: { id: bookId } });
     if (!book) {
@@ -164,22 +164,16 @@ export class UserService {
     return userData;
   }
 
-  async updateLoggedDate(
-    userId: number | undefined,
-    userEmail: string | undefined,
-  ) {
-    let user;
-    if (userId) {
-      user = await this.getById(userId);
-    } else if (userEmail) {
-      user = await this.getByEmail(userEmail);
-    }
+  async updateLoggedDate(userId: number) {
+    const user = await this.getById(userId);
 
     if (!user) {
       return false;
     }
 
     user.lastActiveAt = new Date();
+
+    return user;
   }
 
   async markEmailAsVerified(userId: number): Promise<void> {

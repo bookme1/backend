@@ -147,6 +147,23 @@ class ConfigDto {
   @IsString()
   @IsNotEmpty()
   EMAIL_HOST!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  CLIENT_URL!: string;
+
+  // GOOGLE INFO
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CLIENT_ID!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CLIENT_SECRET!: string;
 }
 
 export const getConfig = (): ConfigDto => {

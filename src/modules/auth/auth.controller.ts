@@ -2,10 +2,10 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Post,
   Query,
-  Request,
+  Req,
+  Res,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -16,13 +16,14 @@ import {
   EmailLoginDto,
   EmailSignupDto,
   ForgotPasswordDto,
-  PasswordChangeDto,
   PasswordResetDto,
 } from 'src/modules/auth/auth.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { constants } from 'src/config/constants';
 import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
 import { Role } from 'src/db/types';
+import { Request, Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('auth')
 @Controller('api/auth')
@@ -30,61 +31,67 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @UsePipes(new ValidationPipe({ transform: true }))
-  @Post('email/login')
-  public loginEmail(@Body() loginEmailDto: EmailLoginDto) {
-    return this.authService.loginEmail(
+  @Post('login')
+  public loginEmail(
+    @Body() loginEmailDto: EmailLoginDto,
+    @Res() response: Response,
+  ) {
+    return this.authService.login(
       loginEmailDto.email,
       loginEmailDto.password,
+      response,
     );
   }
 
-  @UsePipes(new ValidationPipe({ transform: true }))
-  @Post('email/google')
-  public googleLogin(@Body() googleEmailDto: EmailGoogleDto) {
-    return this.authService.googleLogin(
-      googleEmailDto.email,
-      googleEmailDto.name,
-    );
+  // Redirect to Google
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Empty method, redirect automatically
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Body() user: EmailGoogleDto, @Res() res: Response) {
+    return this.authService.googleAuthCallback(user, res);
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
-  @Post('email/signup')
+  @Post('register')
   public signupEmail(
     @Body() signupEmailDto: EmailSignupDto,
+    @Res() res: Response,
     @Query('role') role?: Role,
   ) {
-    return this.authService.signupEmail(
+    return this.authService.register(
       signupEmailDto.username,
       signupEmailDto.email,
       signupEmailDto.password,
       role,
+      res,
     );
   }
 
   @UseGuards(RefreshTokenGuard)
   @ApiBearerAuth(constants.authPatternName)
-  @Get('refresh')
-  public refreshTokens(@Request() req: any) {
-    const { id: userId } = req.user;
-    return this.authService.refreshTokens(userId);
+  @Post('refresh')
+  refresh(@Res() response: Response, @Req() request: Request) {
+    return this.authService.refreshTokens(response, request);
   }
 
-  @Post('forgot-password')
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+  @Post('logout')
+  logout(@Res() res: Response) {
+    return this.authService.logout(res);
+  }
+
+  @Post('password-reset')
+  sendResetLink(@Body() dto: ForgotPasswordDto) {
+    return this.authService.sendPasswordResetLink(dto);
   }
 
   @Post('reset-password/:id/:token')
-  resetPassord(
-    @Param('id') id: number,
-    @Param('token') token: string,
-    @Body() passwordResetDto: PasswordResetDto,
-  ) {
-    return this.authService.resetPassword(id, token, passwordResetDto);
-  }
-
-  @Post('change-password')
-  changePassword(@Body() id: number, passwordChangeDto: PasswordChangeDto) {
-    return this.authService.changePassword(id, passwordChangeDto);
+  resetPassword(@Req() req: Request, @Body() dto: PasswordResetDto) {
+    const { id, token } = req.params;
+    return this.authService.resetPassword(+id, token, dto);
   }
 }
