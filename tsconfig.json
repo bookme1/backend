@@ -10,6 +10,9 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@onix/*": ["src/modules/onix/lib/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,

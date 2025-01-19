@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "baseUrl": "./",
+  "paths": {
+    "@onix/*": ["src/modules/onix/lib/*"]
+  },
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
 }
