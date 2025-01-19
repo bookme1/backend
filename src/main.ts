@@ -4,6 +4,7 @@ import { AppModule } from './modules/app/app.module';
 import { getConfig } from './config';
 import { constants } from './config/constants';
 import * as dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
@@ -13,6 +14,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug', 'fatal', 'verbose'],
   });
+
+  app.use(cookieParser());
 
   app.enableCors();
   const swaggerConfig = new DocumentBuilder()

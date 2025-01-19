@@ -26,11 +26,20 @@ import {
 } from './book.dto';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
+import { Book } from 'src/db/Book';
+import { Repository } from 'typeorm';
+import { OnixService } from '../onix/onix.service';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @ApiTags('book')
 @Controller('api/book')
 export class BooksController {
-  constructor(private readonly bookService: BooksService) {}
+  constructor(
+    private readonly bookService: BooksService,
+    private readonly onixService: OnixService,
+    @InjectRepository(Book)
+    private readonly bookRepository: Repository<Book>,
+  ) {}
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Get('')
@@ -220,6 +229,86 @@ export class BooksController {
       return { status: paymentStatus.status }; // Вернуть статус платежа или другие данные
     } catch (error) {
       throw new Error(`Failed to get payment status: ${error.message}`);
+    }
+  }
+
+  @Get('update-from-arthouse')
+  async updateBooksFromArthouse() {
+    try {
+      // // 1. Получаем массив Product
+      // const products = await this.onixService.makeDigestRequest(
+      //   'platform.elibri.com.ua', // host
+      //   '/api/v1/queues/meta/pop', // path
+      //   'POST', // method
+      //   'bookme', // username
+      //   '64db6ffd98a76c2b879c', // password
+      //   { count: 30 }, // postData
+      //   false, // useHttps = false (если нужно HTTPS, поставьте true)
+      // );
+
+      // if (!products || products.length === 0) {
+      //   return {
+      //     status: 204,
+      //     message: 'No products to update',
+      //     updated: 0,
+      //   };
+      // }
+
+      // let updatedCount = 0;
+
+      // // 2. Парсим каждый продукт и сохраняем/обновляем
+      // for (const product of products) {
+      //   const finalBookData = this.bookService.parseOnixProduct(product);
+
+      //   // Проверяем наличие книги в БД
+      //   const existingBook = await this.bookRepository.findOne({
+      //     where: { referenceNumber: finalBookData.referenceNumber },
+      //   });
+
+      //   if (existingBook) {
+      //     // Обновление
+      //     const oldOriginal = existingBook.original;
+      //     existingBook.original = finalBookData;
+
+      //     // Если какое-то поле совпадало со старым original — обновляем
+      //     Object.keys(finalBookData).forEach((key) => {
+      //       if (existingBook[key] === oldOriginal[key]) {
+      //         existingBook[key] = finalBookData[key];
+      //       }
+      //     });
+
+      //     existingBook.header.originalModifiedAt = new Date().toISOString();
+
+      //     await this.bookRepository.save(existingBook);
+      //   } else {
+      //     // Создание
+      //     const newBook = this.bookRepository.create({
+      //       ...finalBookData,
+      //       original: finalBookData,
+      //       header: {
+      //         createdAt: new Date().toISOString(),
+      //         originalModifiedAt: new Date().toISOString(),
+      //         modifiedAt: '',
+      //         modifiedBy: 0,
+      //       },
+      //     });
+      //     await this.bookRepository.save(newBook);
+      //   }
+
+      //   updatedCount++;
+      // }
+
+      return {
+        status: 201,
+        message: 'Chunk update succeed',
+        // updated: updatedCount,
+      };
+    } catch (error) {
+      return {
+        status: 409,
+        message: 'Chunk update failed',
+        error: error.message,
+      };
     }
   }
 }

@@ -7,13 +7,14 @@ import { HttpModule } from '@nestjs/axios';
 import { Order } from 'src/db/Order';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
+import { OnixService } from '../onix/onix.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Book, Order, User, OrderBook]),
     HttpModule,
   ],
-  providers: [BooksService],
+  providers: [BooksService, OnixService],
   controllers: [BooksController],
   exports: [TypeOrmModule],
 })

@@ -17,6 +17,7 @@ import { Order } from 'src/db/Order';
 import { Status } from 'src/db/types';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
+import { readText, toArray } from './helper';
 
 @Injectable()
 export class BooksService {
@@ -998,5 +999,124 @@ export class BooksService {
       // throw new Error(`Error checking payment status: ${error.message}`);
       // }
     }
+  }
+
+  public parseOnixProduct(product: any) {
+    // Считываем RecordReference
+    const recordReference = readText(product?.RecordReference, '');
+
+    // DescriptiveDetail
+    const descDetail = product?.DescriptiveDetail;
+    // title
+    let title = 'Без назви';
+    if (descDetail?.TitleDetail) {
+      const titleDetArr = toArray(descDetail.TitleDetail);
+      if (titleDetArr.length > 0) {
+        const titleElemArr = toArray(titleDetArr[0].TitleElement);
+        if (titleElemArr.length > 0) {
+          title = readText(titleElemArr[0].TitleText, 'Без назви');
+        }
+      }
+    }
+
+    // pages
+    let pages = 0;
+    if (descDetail?.Extent) {
+      const extentArr = toArray(descDetail.Extent);
+      if (extentArr.length > 0) {
+        pages = Number(readText(extentArr[0].ExtentValue, '0'));
+      }
+    }
+
+    // author
+    const authors: string[] = [];
+    if (descDetail?.NoContributor) {
+      authors.push('Без автора');
+    } else if (descDetail?.Contributor) {
+      const contribArr = toArray(descDetail.Contributor);
+      for (const c of contribArr) {
+        const name = readText(c?.PersonName, '');
+        if (name) authors.push(name);
+      }
+    }
+    if (authors.length === 0) authors.push('Без автора');
+    const author = authors.join(', ');
+
+    // collateralDetail => desc, url
+    let desc = 'Без опису';
+    let url = '';
+    if (product?.CollateralDetail) {
+      const textContents = toArray(product.CollateralDetail.TextContent);
+      if (textContents.length > 0) {
+        desc = readText(textContents[0]?.Text, 'Без опису');
+      }
+      // cover
+      const sResources = toArray(product.CollateralDetail.SupportingResource);
+      if (sResources.length > 0) {
+        const resourceVerArr = toArray(sResources[0]?.ResourceVersion);
+        if (resourceVerArr.length > 0) {
+          url = readText(resourceVerArr[0]?.ResourceLink, '');
+        }
+      }
+    }
+
+    // price
+    let price = '0';
+    if (product?.ProductSupply?.SupplyDetail?.Price?.PriceAmount) {
+      price = readText(
+        product.ProductSupply.SupplyDetail.Price.PriceAmount,
+        '0',
+      );
+    }
+
+    // lang
+    let lang = 'Немає інформації';
+    if (descDetail?.Language) {
+      const langArr = toArray(descDetail.Language);
+      if (langArr.length > 0) {
+        lang = readText(langArr[0]?.LanguageCode, 'Немає інформації');
+      }
+    }
+
+    // publisher + pubDate
+    let pub = 'Автор невідомий';
+    let pubDate = 'Немає інформації';
+    if (product?.PublishingDetail) {
+      pub = readText(
+        product.PublishingDetail?.Publisher?.PublisherName,
+        'Автор невідомий',
+      );
+      const pDates = toArray(product.PublishingDetail?.PublishingDate);
+      if (pDates.length > 0) {
+        pubDate = readText(pDates[0]?.Date, 'Немає інформації');
+      }
+    }
+
+    // genre
+    let genre = 'Жанр невідомий';
+    if (descDetail?.Subject) {
+      const subjArr = toArray(descDetail.Subject);
+      if (subjArr.length > 0) {
+        genre = readText(subjArr[0]?.SubjectHeadingText, 'Жанр невідомий');
+      }
+    }
+
+    return {
+      referenceNumber: recordReference,
+      art: '',
+      title,
+      url,
+      price,
+      pages,
+      lang,
+      desc,
+      author,
+      pub,
+      pubDate,
+      genre,
+      formatMobi: '',
+      formatPdf: '',
+      formatEpub: '',
+    };
   }
 }
