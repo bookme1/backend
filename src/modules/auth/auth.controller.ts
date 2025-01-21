@@ -30,17 +30,19 @@ import { AuthGuard } from '@nestjs/passport';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @UsePipes(new ValidationPipe({ transform: true }))
+  // @UsePipes(new ValidationPipe({ transform: true }))
   @Post('login')
-  public loginEmail(
+  public async loginEmail(
     @Body() loginEmailDto: EmailLoginDto,
     @Res() response: Response,
   ) {
-    return this.authService.login(
+    const result = await this.authService.login(
       loginEmailDto.email,
       loginEmailDto.password,
       response,
     );
+
+    response.json(result);
   }
 
   // Redirect to Google

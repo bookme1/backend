@@ -10,46 +10,46 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
 import { BookType, UserBooksDTO } from './user.dto';
+import { AuthGuard } from '../auth/strategies/accessToken.strategy';
 
 @ApiTags('user')
 @Controller('api/user')
 export class UsersController {
   constructor(private readonly userService: UserService) {}
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get()
   getUserData(@Request() req: any) {
-    const { id: userId } = req.user;
+    const { userId } = req.user;
 
     return this.userService.getUserData(userId);
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/books/:type')
   getUserBooks(@Request() req: any, @Param('type') type: BookType) {
     return this.userService.getUserBooks(type, req.user.id);
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/books/quantity/:type')
   getUserBooksQuantity(@Request() req: any, @Param('type') type: BookType) {
     return this.userService.getUserBooksQuantity(type, req.user.id);
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/orderedBooks')
   getOrderedBooks(@Request() req: any) {
     return this.userService.getOrderedBooks(req.user.id);
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Post('/books')
   addUserBook(@Request() req: any, @Body() userBooksDTO: UserBooksDTO) {
@@ -60,7 +60,7 @@ export class UsersController {
     );
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Delete('/books')
   removeUserBook(@Request() req: any, @Body() userBooksDTO: UserBooksDTO) {

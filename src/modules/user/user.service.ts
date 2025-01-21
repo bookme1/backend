@@ -137,12 +137,20 @@ export class UserService {
     return new BadRequestException();
   }
 
-  async getById(id: number): Promise<User> {
+  public async getById(id: number): Promise<User> {
     const user = await this.repository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
     return user;
+  }
+
+  public async updatePassword(id: number, password: string): Promise<User> {
+    const user = await this.getById(id);
+
+    user.password = password;
+
+    return this.saveUser(user);
   }
 
   getByEmail(email: string) {
@@ -160,7 +168,6 @@ export class UserService {
   removePasswordFromUser(user: User) {
     const userData = { ...user };
     delete userData.password; // delete password from userData
-
     return userData;
   }
 

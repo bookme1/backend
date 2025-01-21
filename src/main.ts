@@ -4,7 +4,7 @@ import { AppModule } from './modules/app/app.module';
 import { getConfig } from './config';
 import { constants } from './config/constants';
 import * as dotenv from 'dotenv';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
@@ -17,7 +17,10 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  app.enableCors();
+  app.enableCors({
+    origin: 'http://localhost:3000', // Frontend domain
+    credentials: true, // Allow cookies
+  });
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Bookme')
     .setDescription('Backend part')

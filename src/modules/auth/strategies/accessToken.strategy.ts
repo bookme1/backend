@@ -1,25 +1,51 @@
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { getConfig } from 'src/config';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { AuthenticatedRequest } from 'src/common/types/AuthenticatedRequest';
 
 type JwtPayload = {
-  id: number;
-  username: string;
+  userId: number;
+  userName: string;
 };
 
-const config = getConfig();
-
 @Injectable()
-export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor() {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: config.JWT_ACCESS_SECRET,
-    });
-  }
+@Injectable()
+export class AuthGuard implements CanActivate {
+  constructor(private readonly jwtService: JwtService) {}
 
-  validate(payload: JwtPayload) {
-    return payload;
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const accessToken = request.cookies['accessToken'];
+
+    if (!accessToken) {
+      throw new UnauthorizedException('No access token provided');
+    }
+
+    try {
+      const payload = this.jwtService.verify<JwtPayload>(accessToken, {
+        secret: process.env.JWT_ACCESS_SECRET, // Убедитесь, что секрет передан
+      });
+
+      // Логирование для отладки
+      console.log('Token payload:', payload);
+
+      // Сохраняем данные пользователя в запрос
+      request.user = payload;
+
+      return true;
+    } catch (err) {
+      // Улучшенная обработка ошибок
+      if (err.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token has expired');
+      } else if (err.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Invalid token');
+      } else {
+        throw new UnauthorizedException('Could not authenticate user');
+      }
+    }
   }
 }

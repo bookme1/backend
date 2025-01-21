@@ -24,7 +24,7 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
-  async login(email: string, password: string, response: Response) {
+  public async login(email: string, password: string, response: Response) {
     const user = await this.userService.getByEmail(email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
@@ -168,15 +168,17 @@ export class AuthService {
   ) {
     response.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      // secure: true,
+      // sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 1000 * 60 * 15, // 15 minutes
     });
 
     response.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      // secure: true,
+      // sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     });
   }
