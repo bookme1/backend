@@ -18,6 +18,7 @@ import { Status } from 'src/db/types';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { readText, toArray } from './helper';
+import { OnixContributorRole } from '@onix/types/enums';
 
 @Injectable()
 export class BooksService {
@@ -521,10 +522,8 @@ export class BooksService {
           { count: 30 },
         );
 
-        for (let i = 0; i < dumpedBooks.length; i++) {
-          const serviceBookObject = dumpedBooks[i];
-
-          // Извлечение данных о книге из сервиса
+        for (const serviceBookObject of dumpedBooks) {
+          // Извлечение ключевых данных
           const recordReference =
             serviceBookObject?.RecordReference?._text || '';
           const descriptiveDetail = serviceBookObject?.DescriptiveDetail || {};
@@ -532,114 +531,58 @@ export class BooksService {
           const collateralDetail = serviceBookObject?.CollateralDetail || {};
           const productSupply = serviceBookObject?.ProductSupply || {};
 
-          const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text || 0;
-          const titleText =
-            descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
-              ?._text || 'Без назви';
-
-          const formats = serviceBookObject?.ProductionDetail
-            ?.ProductionManifest?.BodyManifest?.BodyResource
-            ? this.addFormats(
-                serviceBookObject.ProductionDetail.ProductionManifest
-                  .BodyManifest.BodyResource,
-              )
-            : {};
-
-          const personName = [];
-          if (descriptiveDetail.NoContributor) {
-            personName.push('Без автора');
-          } else if (Array.isArray(descriptiveDetail.Contributor)) {
-            descriptiveDetail.Contributor.forEach((el) => {
-              const name = Array.isArray(el)
-                ? el[0]?.PersonName?._text
-                : el?.PersonName?._text;
-              if (name) personName.push(name);
-            });
-          } else {
-            const unnamedContributor =
-              descriptiveDetail?.Contributor?.UnnamedPersons || false;
-            if (!unnamedContributor) {
-              const personNameText =
-                descriptiveDetail?.Contributor?.PersonName?._text ||
-                'Без автора';
-              personName.push(personNameText);
-            }
-          }
-
-          const author = personName.join(', ') || 'Без автора';
+          // Парсим основные поля
+          const titleText = this.extractTitle(descriptiveDetail);
+          const authors = this.extractAuthors(descriptiveDetail);
+          const genres = this.extractGenres(descriptiveDetail);
+          const pageCount = this.extractPageCount(descriptiveDetail);
+          const language = this.extractLanguage(descriptiveDetail);
+          const description = this.extractDescription(collateralDetail);
+          const price = this.extractPrice(productSupply);
+          const publisher = this.extractPublisher(publishingDetail);
 
           const newBookData = {
-            referenceNumber: recordReference || '',
-            art: '',
-            pages: pageCount || 0,
+            referenceNumber: recordReference,
             title: titleText || 'Без назви',
-            url: Array.isArray(collateralDetail?.SupportingResource)
-              ? collateralDetail.SupportingResource[0]?.ResourceVersion
-                  ?.ResourceLink?._text || ''
-              : collateralDetail?.SupportingResource?.ResourceVersion
-                  ?.ResourceLink?._text || '',
-            price:
-              productSupply?.SupplyDetail?.Price?.PriceAmount?._text || '0',
-            lang: Array.isArray(descriptiveDetail?.Language)
-              ? descriptiveDetail.Language[0]?.LanguageCode?._text ||
-                'Немає інформації'
-              : descriptiveDetail?.Language?.LanguageCode?._text ||
-                'Немає інформації',
-            desc: Array.isArray(collateralDetail?.TextContent)
-              ? collateralDetail.TextContent[0]?.Text?._cdata || 'Без опису'
-              : collateralDetail?.TextContent?.Text?._cdata || 'Без опису',
-            author: author,
-            pub:
-              publishingDetail?.Publisher?.PublisherName?._text ||
-              'Автор невідомий',
-            pubDate: Array.isArray(publishingDetail?.PublishingDate)
-              ? publishingDetail.PublishingDate[0]?.Date?._text ||
-                'Немає інформації'
-              : publishingDetail?.PublishingDate?.Date?._text ||
-                'Немає інформації',
-            genre: Array.isArray(descriptiveDetail?.Subject)
-              ? descriptiveDetail.Subject[0]?.SubjectHeadingText?._text ||
-                'Жанр невідомий'
-              : descriptiveDetail?.Subject?.SubjectHeadingText?._text ||
-                'Жанр невідомий',
-            formatMobi: '',
-            formatPdf: '',
-            formatEpub: '',
+            authors,
+            genres,
+            pages: pageCount || 0,
+            lang: language || 'Немає інформації',
+            desc: description || 'Без опису',
+            pub: publisher || 'Автор невідомий',
+            price: price || '0',
           };
 
-          // Объединение книги с форматами, если такие есть
-          const finalBookData = { ...newBookData, ...formats };
-
-          // 1. Проверка наличия книги по referenceNumber
+          // Проверяем наличие книги в БД
           const existingBook = await this.booksRepository.findOneBy({
-            referenceNumber: finalBookData.referenceNumber,
+            referenceNumber: newBookData.referenceNumber,
           });
 
           if (existingBook) {
-            // 2. Если книга найдена, обновляем original и кастомные данные
-            // Сравниваем оригинальные данные с новыми
-            const originalBook = existingBook.original;
-            const updatedOriginal = finalBookData;
-
-            // Обновляем оригинал
-            existingBook.original = updatedOriginal;
-
-            // Обновляем кастомные данные, если они совпадают с оригинальными
-            Object.keys(finalBookData).forEach((key) => {
-              if (existingBook[key] === originalBook[key]) {
-                existingBook[key] = finalBookData[key];
+            // Обновляем только изменённые поля
+            Object.keys(newBookData).forEach((key) => {
+              if (
+                newBookData[key] &&
+                (!existingBook[key] ||
+                  existingBook[key] === existingBook.original[key])
+              ) {
+                existingBook[key] = newBookData[key];
               }
             });
 
-            // Обновляем поле originalModifiedAt
+            // Обновляем оригинальные данные и мета-информацию
+            existingBook.original = {
+              ...existingBook.original,
+              ...newBookData,
+            };
             existingBook.header.originalModifiedAt = new Date().toISOString();
 
             await this.booksRepository.save(existingBook);
           } else {
-            // 3. Если книга не найдена, добавляем новую
+            // Создаём новую запись
             const newBook = this.booksRepository.create({
-              ...finalBookData,
-              original: finalBookData,
+              ...newBookData,
+              original: newBookData,
               header: {
                 createdAt: new Date().toISOString(),
                 originalModifiedAt: new Date().toISOString(),
@@ -651,9 +594,10 @@ export class BooksService {
 
           dumpedQuantity += 1;
         }
-      } while (dumpedQuantity < 30 && dumpedBooks.length !== 0); // Пока есть данные, продолжаем обновление
+      } while (dumpedBooks.length > 0); // Продолжаем до тех пор, пока сервер возвращает данные
+
       return {
-        status: dumpedQuantity == 30 ? 201 : 204,
+        status: dumpedQuantity > 0 ? 201 : 204,
         message: 'Chunk update succeed',
         updated: dumpedQuantity,
       };
@@ -666,6 +610,55 @@ export class BooksService {
         error,
       };
     }
+  }
+
+  private extractAuthors(descriptiveDetail: any): string[] {
+    if (descriptiveDetail.NoContributor) return ['Без автора'];
+
+    const contributors = descriptiveDetail?.Contributor || [];
+    const authors = contributors
+      .filter((c) => c.ContributorRole?.includes(OnixContributorRole.Author)) // Фильтруем только авторов
+      .map((c) => c.PersonName?._text || 'Без імені');
+    return authors.length ? authors : ['Без автора'];
+  }
+
+  private extractGenres(descriptiveDetail: any): string[] {
+    const subjects = descriptiveDetail?.Subject || [];
+    return subjects.map((s) => s.SubjectHeadingText?._text || 'Жанр невідомий');
+  }
+
+  private extractTitle(descriptiveDetail: any): string {
+    const titleDetail = descriptiveDetail?.TitleDetail?.[0];
+    const titleElement = titleDetail?.TitleElement?.[0];
+    return titleElement?.TitleText?._text || 'Без назви';
+  }
+
+  private extractPageCount(descriptiveDetail: any): number {
+    const extent = descriptiveDetail?.Extent?.find(
+      (e) => e.ExtentType === '00',
+    ); // Тип 00 = Pages
+    return extent?.ExtentValue?._text || 0;
+  }
+
+  private extractLanguage(descriptiveDetail: any): string {
+    const language = descriptiveDetail?.Language?.[0];
+    return language?.LanguageCode?._text || 'Немає інформації';
+  }
+
+  private extractDescription(collateralDetail: any): string {
+    const textContent = collateralDetail?.TextContent?.[0];
+    return textContent?.Text?._cdata || 'Без опису';
+  }
+
+  private extractPrice(productSupply: any): string {
+    const supplyDetail = productSupply?.SupplyDetail;
+    return supplyDetail?.Price?.PriceAmount?._text || '0';
+  }
+
+  private extractPublisher(publishingDetail: any): string {
+    return (
+      publishingDetail?.Publisher?.PublisherName?._text || 'Автор невідомий'
+    );
   }
 
   async refillItemsQueue() {

@@ -4,11 +4,17 @@ import { XMLParser } from 'fast-xml-parser';
 import { request, RequestOptions, IncomingMessage } from 'http';
 import { request as httpsRequest } from 'https';
 import { readText, toArray } from '../book/helper';
+import { InjectRepository } from '@nestjs/typeorm';
+import { OnixBookEntity } from 'src/db/OnixBookEntity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class OnixService {
   private readonly logger = new Logger(OnixService.name);
-
+  constructor(
+    @InjectRepository(OnixBookEntity)
+    private readonly bookRepository: Repository<OnixBookEntity>,
+  ) {}
   // Parse header "www-authenticate"
   private parseAuthenticateHeader(headerValue: string): Record<string, string> {
     // Example: 'Digest realm="testrealm@host.com", qop="auth", nonce="..., opaque="..."'

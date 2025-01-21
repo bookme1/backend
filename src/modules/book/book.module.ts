@@ -8,10 +8,11 @@ import { Order } from 'src/db/Order';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { OnixService } from '../onix/onix.service';
+import { OnixBookEntity } from 'src/db/OnixBookEntity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Book, Order, User, OrderBook]),
+    TypeOrmModule.forFeature([Book, Order, User, OrderBook, OnixBookEntity]),
     HttpModule,
   ],
   providers: [BooksService, OnixService],

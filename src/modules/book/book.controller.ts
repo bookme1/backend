@@ -55,80 +55,92 @@ export class BooksController {
 
   @Get('update-from-arthouse')
   async updateBooksFromArthouse() {
+    let totalUpdated = 0;
+
     try {
-      // 1. Получаем массив Product
-      const products = await this.onixService.makeDigestRequest(
-        'platform.elibri.com.ua', // host
-        '/api/v1/queues/meta/pop', // path
-        'POST', // method
-        'bookme', // username
-        '64db6ffd98a76c2b879c', // password
-        { count: 30 }, // postData
-        false, // useHttps = false (если нужно HTTPS, поставьте true)
-      );
+      // Инициализация переменных для чанков
+      const chunkSize = 30;
+      let hasMoreData = true;
 
-      if (!products || products.length === 0) {
-        return {
-          status: 204,
-          message: 'No products to update',
-          updated: 0,
-        };
-      }
-      // let updatedCount = 0;
-      const updatedBooks = [];
-      // 2. Парсим каждый продукт и сохраняем/обновляем
-      for (const product of products) {
-        const finalBookData = await this.onixService.parseOnixProduct(product);
-        updatedBooks.push(finalBookData);
-        // Проверяем наличие книги в БД
-        const existingBook = await this.bookRepository.findOne({
-          where: { referenceNumber: finalBookData.referenceNumber },
-        });
+      while (hasMoreData) {
+        // 1. Получаем данные текущего чанка
+        const products = await this.onixService.makeDigestRequest(
+          'platform.elibri.com.ua', // host
+          '/api/v1/queues/meta/pop', // path
+          'POST', // method
+          'bookme', // username
+          '64db6ffd98a76c2b879c', // password
+          { count: chunkSize }, // postData
+          false, // useHttps = false
+        );
 
-        if (existingBook) {
-          // Обновление
-          const oldOriginal = existingBook.original;
-          existingBook.original = finalBookData;
-
-          // Если какое-то поле совпадало со старым original — обновляем
-          Object.keys(finalBookData).forEach((key) => {
-            if (existingBook[key] === oldOriginal[key]) {
-              existingBook[key] = finalBookData[key];
-            }
-          });
-
-          existingBook.header.originalModifiedAt = new Date().toISOString();
-
-          await this.bookRepository.save(existingBook);
-        } else {
-          // Создание
-          const newBook = this.bookRepository.create({
-            ...finalBookData,
-            original: finalBookData,
-            header: {
-              createdAt: new Date().toISOString(),
-              originalModifiedAt: new Date().toISOString(),
-              modifiedAt: '',
-              modifiedBy: 0,
-            },
-          });
-          await this.bookRepository.save(newBook);
+        if (!products || products.length === 0) {
+          hasMoreData = false; // Если нет данных, выходим из цикла
+          // this.logger.log('No more products to update.');
+          break;
         }
 
-        // updatedCount++;
+        // this.logger.log(`Processing chunk of ${products.length} products...`);
+
+        // 2. Обновление книг из текущего чанка
+        const updatedBooks = await Promise.all(
+          products.map(async (product) => {
+            const finalBookData =
+              await this.onixService.parseOnixProduct(product);
+            return this.upsertBook(finalBookData);
+          }),
+        );
+
+        totalUpdated += updatedBooks.length;
       }
 
+      // this.logger.log(`Successfully updated a total of ${totalUpdated} books.`);
       return {
         status: 201,
-        message: 'Chunk update succeed',
-        updated: updatedBooks,
+        message: 'All chunks updated successfully',
+        updated: totalUpdated,
       };
     } catch (error) {
+      // this.logger.error('Error updating books from Arthouse:', error.stack);
       return {
-        status: 409,
-        message: 'Chunk update failed',
+        status: 500,
+        message: 'Update failed',
         error: error.message,
       };
+    }
+  }
+
+  // Сохранение или обновление книги
+  private async upsertBook(finalBookData: any) {
+    const existingBook = await this.bookRepository.findOne({
+      where: { referenceNumber: finalBookData.referenceNumber },
+    });
+
+    if (existingBook) {
+      // Обновление существующей книги
+      const updatedBook = {
+        ...existingBook,
+        ...finalBookData,
+        header: {
+          ...existingBook.header,
+          originalModifiedAt: new Date().toISOString(),
+        },
+      };
+      await this.bookRepository.save(updatedBook);
+      return updatedBook;
+    } else {
+      // Создание новой книги
+      const newBook = this.bookRepository.create({
+        ...finalBookData,
+        header: {
+          createdAt: new Date().toISOString(),
+          originalModifiedAt: new Date().toISOString(),
+          modifiedAt: '',
+          modifiedBy: 0,
+        },
+      });
+      await this.bookRepository.save(newBook);
+      return newBook;
     }
   }
 
