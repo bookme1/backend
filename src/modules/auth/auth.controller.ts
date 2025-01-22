@@ -74,11 +74,11 @@ export class AuthController {
     );
   }
 
-  @UseGuards(RefreshTokenGuard)
-  @ApiBearerAuth(constants.authPatternName)
   @Post('refresh')
   refresh(@Res() response: Response, @Req() request: Request) {
-    return this.authService.refreshTokens(response, request);
+    const result = this.authService.refreshTokens(response, request);
+
+    response.json(result);
   }
 
   @Post('logout')

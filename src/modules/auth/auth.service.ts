@@ -78,7 +78,7 @@ export class AuthService {
 
   async refreshTokens(response: Response, request: Request) {
     const refreshToken = request.cookies['refreshToken'];
-    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    if (!refreshToken) return new UnauthorizedException('No refresh token');
 
     try {
       const payload = this.jwtService.verify(refreshToken, {
@@ -94,7 +94,7 @@ export class AuthService {
 
       return { message: 'Tokens refreshed successfully' };
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      return new UnauthorizedException('Invalid refresh token');
     }
   }
 
