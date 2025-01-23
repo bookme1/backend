@@ -189,12 +189,12 @@ export class AuthService {
   ) {
     let existingUser = await this.userService.getByEmail(user.email);
 
-    // Create user if the data doesn't exist
+    // Create a new user, if it doesn't exist
     if (!existingUser) {
       existingUser = await this.userService.saveUser({
         username: user.name,
         email: user.email,
-        role: Role.User,
+        role: Role.User, // Role by default TODO: add opportunity to choose it somewhere also to author(or switch)
       });
     }
 
@@ -202,11 +202,13 @@ export class AuthService {
       userId: existingUser.id,
       userName: existingUser.username,
     };
+
     const tokens = await this.generateTokens(payload);
 
     // Set cookies
     this.setAuthCookies(response, tokens);
 
-    return response.redirect(`${process.env.CLIENT_DOMAIN}/dashboard`);
+    // Redirect to frontend
+    return response.redirect(`${process.env.CLIENT_URL}/account`);
   }
 }

@@ -10,11 +10,13 @@ import { MailService } from '../mail/mail.service';
 import { EmailVerificationModule } from '../email-verification/email-verification.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt-access' }),
     JwtModule.register({}),
+    PassportModule.register({ defaultStrategy: 'google' }),
     UsersModule,
     EmailVerificationModule,
     BooksModule,
@@ -26,6 +28,7 @@ import { JwtModule } from '@nestjs/jwt';
     AuthGuard,
     RefreshTokenStrategy,
     MailService,
+    GoogleStrategy,
   ],
 })
 export class AuthModule {}
