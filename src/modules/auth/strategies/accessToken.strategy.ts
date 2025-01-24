@@ -13,6 +13,7 @@ type JwtPayload = {
 };
 
 @Injectable()
+@Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
@@ -26,13 +27,18 @@ export class AuthGuard implements CanActivate {
 
     try {
       const payload = this.jwtService.verify<JwtPayload>(accessToken, {
-        secret: process.env.JWT_ACCESS_SECRET,
+        secret: process.env.JWT_ACCESS_SECRET, // Убедитесь, что секрет передан
       });
 
+      // Логирование для отладки
+      console.log('Token payload:', payload);
+
+      // Сохраняем данные пользователя в запрос
       request.user = payload;
 
       return true;
     } catch (err) {
+      // Улучшенная обработка ошибок
       if (err.name === 'TokenExpiredError') {
         throw new UnauthorizedException('Token has expired');
       } else if (err.name === 'JsonWebTokenError') {
