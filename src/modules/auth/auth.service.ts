@@ -22,7 +22,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   public async login(email: string, password: string, response: Response) {
     const user = await this.userService.getByEmail(email);
