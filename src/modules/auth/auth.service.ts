@@ -22,7 +22,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   public async login(email: string, password: string, response: Response) {
     const user = await this.userService.getByEmail(email);
@@ -191,12 +191,12 @@ export class AuthService {
   ) {
     let existingUser = await this.userService.getByEmail(user.email);
 
-    // Create a new user, if it doesn't exist
+    // Create user if the data doesn't exist
     if (!existingUser) {
       existingUser = await this.userService.saveUser({
         username: user.name,
         email: user.email,
-        role: Role.User, // Role by default TODO: add opportunity to choose it somewhere also to author(or switch)
+        role: Role.User,
       });
     }
 
@@ -204,13 +204,11 @@ export class AuthService {
       userId: existingUser.id,
       userName: existingUser.username,
     };
-
     const tokens = await this.generateTokens(payload);
 
     // Set cookies
     this.setAuthCookies(response, tokens);
 
-    // Redirect to frontend
-    return response.redirect(`${process.env.CLIENT_URL}/account`);
+    return response.redirect(`${process.env.CLIENT_DOMAIN}/dashboard`);
   }
 }
