@@ -55,7 +55,7 @@ export class UsersController {
   addUserBook(@Request() req: any, @Body() userBooksDTO: UserBooksDTO) {
     return this.userService.addUserBook(
       userBooksDTO.type,
-      req.user.id,
+      req.user.userId,
       userBooksDTO.bookId,
     );
   }

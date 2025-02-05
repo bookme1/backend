@@ -78,16 +78,18 @@ export class AuthService {
 
   async refreshTokens(response: Response, request: Request) {
     const refreshToken = request.cookies['refreshToken'];
-    if (!refreshToken) return new UnauthorizedException('No refresh token');
+    if (!refreshToken) throw new UnauthorizedException('No refresh token');
 
     try {
       const payload = this.jwtService.verify(refreshToken, {
         secret: config.JWT_REFRESH_SECRET,
       });
 
+      console.warn('payload', payload);
+
       const tokens = await this.generateTokens({
-        userId: payload.id,
-        userName: payload.username,
+        userId: payload.userId,
+        userName: payload.userName,
       });
 
       this.setAuthCookies(response, tokens);
@@ -179,7 +181,7 @@ export class AuthService {
       // secure: true,
       // sameSite: 'strict',
       sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      maxAge: 1000 * 60 * 60 * 24 * 10, // 10 days
     });
   }
 

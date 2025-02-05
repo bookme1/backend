@@ -77,8 +77,9 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh(@Res() response: Response, @Req() request: Request) {
-    const result = this.authService.refreshTokens(response, request);
+  public async refresh(@Req() request: Request, @Res() response: Response) {
+    const result = await this.authService.refreshTokens(response, request);
+    console.warn(response.getHeaders());
     response.json(result);
   }
 
