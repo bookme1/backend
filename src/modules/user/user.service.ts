@@ -35,24 +35,32 @@ export class UserService {
     // Set last user activity
     await this.updateLoggedDate(userId);
 
-    const queryBuilder = this.repository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect(`user.${type.toLowerCase()}`, 'book') // join for bounded books
-      .where('user.id = :id', { id: userId })
-      .select([
-        'user.id',
-        'book.id',
-        'book.title', // Выбираем нужные поля из книги
-        'book.author',
-        'book.price',
-        'book.url',
-        'book.formatMobi',
-        'book.formatPdf',
-        'book.formatEpub',
-      ]);
+    // const queryBuilder = this.repository
+    //   .createQueryBuilder('user')
+    //   .leftJoinAndSelect(`user.${type.toLocaleLowerCase()}`, 'book') // join for bounded books
+    //   .where('user.id = :id', { id: userId })
+    // .select([
+    //   'user.id',
+    //   'book.id',
+    //   'book.title', // Take desired fields from each book
+    //   'book.author',
+    //   'book.price',
+    //   'book.url',
+    //   'book.formatMobi',
+    //   'book.formatPdf',
+    //   'book.formatEpub',
+    // ]);
 
-    // Выполняем запрос и возвращаем результат
-    return await queryBuilder.getOne();
+    // const books = await queryBuilder.getOne();
+    if (type === BookType.Fav) {
+      const books = (await this.getById(userId)).fav;
+      return books;
+    }
+    if (type === BookType.Cart) {
+      const books = (await this.getById(userId)).cart;
+      return books;
+    }
+    return [];
   }
 
   async getUserBooksQuantity(type: BookType, userId: number): Promise<number> {
@@ -98,36 +106,36 @@ export class UserService {
     return { message: 'successfully', bookId };
   }
 
-  async removeUserBook(type: BookType, userId: number, bookId: string) {
-    if (type == null) return new BadRequestException('Type is not provided');
+  async removeUserBook(
+    type: BookType,
+    userId: number,
+    bookId: string,
+  ): Promise<void> {
+    if (!userId)
+      throw new BadRequestException('User id is not provided!(unathorized)');
+    if (!type) throw new BadRequestException('Type is not provided');
 
     const user = await this.getById(userId);
+    if (!user) throw new NotFoundException('User not found');
 
     // Set last user activity
     await this.updateLoggedDate(userId);
 
-    const book = await this.booksRepository.findOne({ where: { id: bookId } });
-    if (!book) {
-      throw new NotFoundException('Book not found');
+    if (!user[type.toLocaleLowerCase()])
+      throw new BadRequestException('Invalid book type');
+
+    const initialLength = user[type.toLocaleLowerCase()].length;
+    console.warn(user);
+    console.warn(bookId);
+    user[type.toLocaleLowerCase()] = user[type.toLocaleLowerCase()].filter(
+      (b) => b.id !== bookId,
+    );
+
+    if (user[type.toLocaleLowerCase()].length === initialLength) {
+      throw new NotFoundException('Book not found in user collection');
     }
 
-    if (type == BookType.Fav) {
-      const index = user.fav.findIndex((b) => b.id === book.id);
-      if (index > -1) {
-        user.fav.splice(index, 1);
-      }
-      await this.repository.save(user);
-      return user.fav;
-    } else if (type == BookType.Cart) {
-      const index = user.cart.findIndex((b) => b.id === book.id);
-      if (index > -1) {
-        user.cart.splice(index, 1);
-      }
-      await this.repository.save(user);
-      return user.cart;
-    }
-
-    return new BadRequestException();
+    await this.repository.save(user);
   }
 
   async getOrderedBooks(userId: number) {

@@ -32,21 +32,21 @@ export class UsersController {
   @ApiBearerAuth(constants.authPatternName)
   @Get('/books/:type')
   getUserBooks(@Request() req: any, @Param('type') type: BookType) {
-    return this.userService.getUserBooks(type, req.user.id);
+    return this.userService.getUserBooks(type, req.user.userId);
   }
 
   @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/books/quantity/:type')
   getUserBooksQuantity(@Request() req: any, @Param('type') type: BookType) {
-    return this.userService.getUserBooksQuantity(type, req.user.id);
+    return this.userService.getUserBooksQuantity(type, req.user.userId);
   }
 
   @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/orderedBooks')
   getOrderedBooks(@Request() req: any) {
-    return this.userService.getOrderedBooks(req.user.id);
+    return this.userService.getOrderedBooks(req.user.userId);
   }
 
   @UseGuards(AuthGuard)
@@ -64,9 +64,10 @@ export class UsersController {
   @ApiBearerAuth(constants.authPatternName)
   @Delete('/books')
   removeUserBook(@Request() req: any, @Body() userBooksDTO: UserBooksDTO) {
+    console.warn(req.user);
     return this.userService.removeUserBook(
       userBooksDTO.type,
-      req.user.id,
+      req.user.userId,
       userBooksDTO.bookId,
     );
   }

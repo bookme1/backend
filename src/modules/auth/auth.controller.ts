@@ -18,9 +18,7 @@ import {
   ForgotPasswordDto,
   PasswordResetDto,
 } from 'src/modules/auth/auth.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { constants } from 'src/config/constants';
-import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { ApiTags } from '@nestjs/swagger';
 import { Role } from 'src/db/types';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
