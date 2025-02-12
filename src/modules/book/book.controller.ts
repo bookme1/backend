@@ -204,7 +204,7 @@ export class BooksController {
   @Post('/cart-checkout')
   public async makeCartCheckout(@Request() req: any) {
     try {
-      const response = await this.bookService.checkout(req.user.id);
+      const response = await this.bookService.checkout(req.user.userId);
       console.log('Response:', response);
       return response;
     } catch (error) {
