@@ -24,8 +24,8 @@ import {
   SaveBookDto,
   WatermarkDTO,
 } from './book.dto';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
+import { AuthGuard } from '../auth/strategies/accessToken.strategy';
 
 @ApiTags('book')
 @Controller('api/book')
@@ -198,7 +198,7 @@ export class BooksController {
     }
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('/cart-checkout')
