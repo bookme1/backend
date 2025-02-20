@@ -164,6 +164,16 @@ class ConfigDto {
   @IsString()
   @IsNotEmpty()
   GOOGLE_CLIENT_SECRET!: string;
+
+  // REDIS
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  REDIS_PASS!: string;
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  REDIS_URI!: string;
 }
 
 export const getConfig = (): ConfigDto => {
