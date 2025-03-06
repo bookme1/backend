@@ -9,12 +9,20 @@ import { Book } from 'src/db/Book';
 import { BooksService } from '../book/book.service';
 import { HttpModule } from '@nestjs/axios';
 import { OrderBook } from 'src/db/OrderBook';
+import { JwtModule } from '@nestjs/jwt';
+import { LogsModule } from '../log/log.module';
+import { Log } from 'src/db/Log';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, User, Book, OrderBook]),
+    TypeOrmModule.forFeature([Order, User, Book, OrderBook, Log]),
     BooksModule,
     HttpModule,
+    LogsModule,
+    JwtModule.register({
+      secret: process.env.JWT_ACCESS_SECRET,
+      signOptions: { expiresIn: '15m' },
+    }),
   ],
   providers: [OrderService, BooksService],
   controllers: [OrderController],

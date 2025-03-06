@@ -24,12 +24,12 @@ import {
   SaveBookDto,
   WatermarkDTO,
 } from './book.dto';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
 import { Book } from 'src/db/Book';
 import { Repository } from 'typeorm';
 import { OnixService } from '../onix/onix.service';
 import { InjectRepository } from '@nestjs/typeorm';
+import { AuthGuard } from '../auth/strategies/accessToken.strategy';
 
 @ApiTags('book')
 @Controller('api/book')
@@ -298,13 +298,13 @@ export class BooksController {
     }
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('/cart-checkout')
   public async makeCartCheckout(@Request() req: any) {
     try {
-      const response = await this.bookService.checkout(req.user.id);
+      const response = await this.bookService.checkout(req.user.userId);
       console.log('Response:', response);
       return response;
     } catch (error) {

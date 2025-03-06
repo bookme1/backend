@@ -19,10 +19,12 @@ import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { readText, toArray } from './helper';
 import { OnixContributorRole } from '@onix/types/enums';
+import { LogsService } from '../log/log.service';
 
 @Injectable()
 export class BooksService {
   constructor(
+    private logsService: LogsService,
     @InjectRepository(Book)
     private booksRepository: Repository<Book>,
     private httpService: HttpService,
@@ -603,6 +605,13 @@ export class BooksService {
       };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
+
+      await this.logsService.save({
+        source: 'updateBooksFromArthouse',
+        message: `Critical error: ${error.message}`,
+        context: error,
+        code: 5000,
+      });
 
       return {
         status: 409,

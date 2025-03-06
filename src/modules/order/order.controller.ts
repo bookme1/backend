@@ -12,6 +12,7 @@ import { CreateOrderDTO } from './order.dto';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
 import { BooksService } from '../book/book.service';
+import { AuthGuard } from 'src/common/guards/cookie.guard';
 
 @ApiTags('order')
 @Controller('api/order')
@@ -39,11 +40,11 @@ export class OrderController {
   }
 
   // ONLY REGISTERED USERS
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/orderedBooks')
   public async getUserBoughtBooks(@Request() req: any) {
-    const { id: userId } = req.user;
+    const { userId } = req.user;
     // Check status for all loading payments. If payed -> deliver
     const ordersInLoading = await this.orderService.findAllLoading(userId);
     ordersInLoading.forEach((o) => {

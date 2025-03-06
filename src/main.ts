@@ -18,7 +18,10 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  app.enableCors();
+  app.enableCors({
+    origin: 'http://localhost:3000', // Frontend domain
+    credentials: true, // Allow cookies
+  });
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Bookme')
     .setDescription('Backend part')

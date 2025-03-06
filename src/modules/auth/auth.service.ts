@@ -1,26 +1,18 @@
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpStatus,
   Injectable,
-  InternalServerErrorException,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcrypt';
-import * as bcrypt from 'bcrypt';
 import { getConfig } from 'src/config';
 import { UserService } from '../user/user.service';
 import { Role } from 'src/db/types';
 import { MailService } from '../mail/mail.service';
 import { EmailTemplateParams } from '../mail/mail-interface';
-import {
-  ForgotPasswordDto,
-  PasswordChangeDto,
-  PasswordResetDto,
-} from './auth.dto';
+import { ForgotPasswordDto, PasswordResetDto } from './auth.dto';
+import { Request, Response } from 'express';
 
 const config = getConfig();
 
@@ -30,119 +22,135 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
-  async loginEmail(email: string, password: string) {
+  public async login(email: string, password: string, response: Response) {
     const user = await this.userService.getByEmail(email);
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+
     const isPasswordValid = await compare(password, user.password);
+    if (!isPasswordValid)
+      throw new UnauthorizedException('Invalid credentials');
 
-    if (!isPasswordValid) {
-      throw new UnauthorizedException();
-    }
-    const payload = {
-      id: user.id,
-      username: user.username,
-    };
-    const tokens = await this.getTokens(payload);
-    // Set last user activity
-    await this.userService.updateLoggedDate(user.id, '');
+    const payload = { userId: user.id, userName: user.username };
+    const tokens = await this.generateTokens(payload);
+
+    this.setAuthCookies(response, tokens);
+
+    await this.userService.updateLoggedDate(user.id);
 
     return {
-      tokens,
+      message: 'Logged in successfully',
       user: this.userService.removePasswordFromUser(user),
     };
   }
 
-  async googleLogin(email: string, name: string) {
-    let user = await this.userService.getByEmail(email);
-    if (!user) {
-      this.googleSignup(name, email);
-      user = await this.userService.getByEmail(email);
-    }
-    const payload = {
-      id: user.id,
-      username: user.username,
-    };
-    const tokens = await this.getTokens(payload);
-
-    // Set last user activity
-    await this.userService.updateLoggedDate(user.id, '');
-
-    return {
-      tokens,
-      user: this.userService.removePasswordFromUser(user),
-    };
-  }
-
-  async googleSignup(username: string, email: string) {
-    try {
-      const response = await this.userService.saveUser({
-        username,
-        email,
-      });
-
-      // Set last user activity
-      await this.userService.updateLoggedDate(undefined, email);
-
-      return response;
-    } catch (error) {
-      console.error('Error signing up with email:', error);
-      throw new InternalServerErrorException({
-        statusCode: 500,
-        message: 'Failed to sign up with email.',
-        error: error.message,
-      });
-    }
-  }
-
-  async signupEmail(
+  async register(
     username: string,
     email: string,
     password: string,
     role: Role = Role.User,
+    response: Response,
   ) {
-    try {
-      const hashedPassword = await hash(password, 12);
-      const response = await this.userService.saveUser({
-        username,
-        email,
-        password: hashedPassword,
-        role,
-      });
+    const existingUser = await this.userService.getByEmail(email);
+    if (existingUser) throw new ConflictException('Email already in use');
 
-      // Set last user activity
-      await this.userService.updateLoggedDate(undefined, email);
+    const hashedPassword = await hash(password, 12);
+    const user = await this.userService.saveUser({
+      username,
+      email,
+      password: hashedPassword,
+      role,
+    });
 
-      return response;
-    } catch (error) {
-      console.error('Error signing up with email:', error);
-      throw new InternalServerErrorException({
-        statusCode: 500,
-        message: 'Failed to sign up with email.',
-        error: error.message,
-      });
-    }
-  }
+    const payload = { userId: user.id, userName: user.username };
+    const tokens = await this.generateTokens(payload);
 
-  async refreshTokens(userId: number) {
-    const user = await this.userService.getById(userId);
-    if (!user) throw new ForbiddenException('Access Denied');
-    const payload = { id: user.id, username: user.username };
+    this.setAuthCookies(response, tokens);
 
-    const tokens = await this.getTokens(payload);
-    const userData = await this.userService.removePasswordFromUser(user);
-
-    // Set last user activity
-    await this.userService.updateLoggedDate(userId, '');
+    await this.userService.updateLoggedDate(user.id);
 
     return {
-      tokens,
-      userData,
+      message: 'Registered successfully',
+      user: this.userService.removePasswordFromUser(user),
     };
   }
 
-  async getTokens(payload: { id: number; username: string | null }) {
+  async refreshTokens(response: Response, request: Request) {
+    const refreshToken = request.cookies['refreshToken'];
+    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: config.JWT_REFRESH_SECRET,
+      });
+
+      console.warn('payload', payload);
+
+      const tokens = await this.generateTokens({
+        userId: payload.userId,
+        userName: payload.userName,
+      });
+
+      this.setAuthCookies(response, tokens);
+
+      return { message: 'Tokens refreshed successfully' };
+    } catch {
+      return new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async logout(response: Response) {
+    response.clearCookie('accessToken', { httpOnly: true, secure: true });
+    response.clearCookie('refreshToken', { httpOnly: true, secure: true });
+    return { message: 'Logged out successfully' };
+  }
+
+  async sendPasswordResetLink(dto: ForgotPasswordDto) {
+    const user = await this.userService.getByEmail(dto.email);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const payload = { id: user.id, username: user.username };
+    const token = await this.jwtService.signAsync(payload, {
+      secret: config.JWT_ACCESS_SECRET,
+      expiresIn: '15m',
+    });
+
+    const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${token}`;
+    const mailData: EmailTemplateParams = {
+      to_name: user.username,
+      to_email: dto.email,
+      subject: 'Password Reset Request',
+      text: `Hello ${user.username},\n\nClick the link to reset your password:\n${link}\n\nIf you didn't request this, please ignore.`,
+    };
+
+    await this.mailService.sendEmail(mailData);
+    return { message: 'Password reset link sent to email' };
+  }
+
+  async resetPassword(id: number, token: string, dto: PasswordResetDto) {
+    const payload = this.jwtService.verify(token, {
+      secret: config.JWT_ACCESS_SECRET,
+    });
+
+    if (!payload || payload.id !== id) {
+      throw new ForbiddenException('Invalid or expired token');
+    }
+
+    if (dto.password !== dto.confirm_password) {
+      throw new ConflictException("Passwords don't match");
+    }
+
+    const hashedPassword = await hash(dto.password, 12);
+    await this.userService.updatePassword(id, hashedPassword);
+
+    return { message: 'Password reset successfully' };
+  }
+
+  private async generateTokens(payload: {
+    userId: number;
+    userName: string | null;
+  }) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: config.JWT_ACCESS_SECRET,
@@ -153,123 +161,54 @@ export class AuthService {
         expiresIn: config.JWT_REFRESH_EXPIRES,
       }),
     ]);
-    return {
-      accessToken,
-      refreshToken,
-    };
+    return { accessToken, refreshToken };
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
-    const email = forgotPasswordDto.email;
-    const user = await this.userService.getByEmail(email);
-    if (!user) throw new UnauthorizedException();
-    const payload = {
-      id: user.id,
-      username: user.username,
-    };
-    const tokens = await this.getTokens(payload);
-    const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${tokens.accessToken}`;
-    const mailData: EmailTemplateParams = {
-      to_name: user.username,
-      to_email: forgotPasswordDto.email,
-      subject: 'Forgot password',
-      text: `Шановний користувачу!
-Ми вислали вам цей лист у відповідь на ваш запит змінити пароль на сайті. 
-Якщо ви не робили цього запиту, проігноруйте цей лист!
-Якщо ви робили цей запит, перейдіть за цим посиланням ${link} для зміни паролю.
-
-З повагою,
-команда BookMe`,
-    };
-    if (await this.mailService.sendEmail(mailData)) {
-      return (
-        HttpStatus.OK,
-        'if you are registered, you will shortly receive reset email link'
-      );
-    }
-    throw new ServiceUnavailableException(
-      HttpStatus.SERVICE_UNAVAILABLE,
-      'Service is unavailable',
-    );
-  }
-
-  async resetPassword(
-    id: number,
-    token: string,
-    passwordResetDto: PasswordResetDto,
+  private setAuthCookies(
+    response: Response,
+    tokens: { accessToken: string; refreshToken: string },
   ) {
-    const payload = this.jwtService.verify(token);
-    if (!payload)
-      throw new ForbiddenException(
-        (HttpStatus.FORBIDDEN, 'expired or invalid token'),
-      );
-    const user = await this.userService.getById(id);
-    if (!user) throw new UnauthorizedException();
-    if (passwordResetDto.password !== passwordResetDto.confirm_password)
-      throw new ConflictException(
-        (HttpStatus.CONFLICT, "passwords don't match"),
-      );
-    const hashedPassword = await bcrypt.hash(passwordResetDto.password, 10);
-    user.password = hashedPassword;
-    await this.userService.saveUser(hashedPassword);
+    response.cookie('accessToken', tokens.accessToken, {
+      httpOnly: true,
+      // secure: true,
+      // sameSite: 'strict',
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 15, // 15 minutes
+    });
 
-    const mailData: EmailTemplateParams = {
-      to_name: user.username,
-      to_email: user.email,
-      subject: 'Change password',
-      text: `Ваш пароль зміненно.
-      З повагою,
-      команда BookMe`,
-    };
-    if (await this.mailService.sendEmail(mailData)) {
-      return (
-        HttpStatus.OK,
-        'if you are registered, you will shortly receive reset email link'
-      );
-    }
-    throw new ServiceUnavailableException(
-      HttpStatus.SERVICE_UNAVAILABLE,
-      'Service is unavailable',
-    );
+    response.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      // secure: true,
+      // sameSite: 'strict',
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24 * 10, // 10 days
+    });
   }
 
-  async changePassword(id: number, passwordChangeDto: PasswordChangeDto) {
-    const user = await this.userService.getById(id);
-    if (!user) throw new UnauthorizedException();
-    const passwordMatch = await bcrypt.compare(
-      passwordChangeDto.currentPassword,
-      user.password,
-    );
-    if (!passwordMatch) {
-      throw new BadRequestException('Old password is incorrect');
+  async googleAuthCallback(
+    user: { email: string; name: string },
+    response: Response,
+  ) {
+    let existingUser = await this.userService.getByEmail(user.email);
+
+    // Create user if the data doesn't exist
+    if (!existingUser) {
+      existingUser = await this.userService.saveUser({
+        username: user.name,
+        email: user.email,
+        role: Role.User,
+      });
     }
-    const hashedPassword = await bcrypt.hash(passwordChangeDto.newPassword, 10);
 
-    user.password = hashedPassword;
-    await this.userService.saveUser(hashedPassword);
-
-    const mailData: EmailTemplateParams = {
-      to_name: user.username,
-      to_email: user.email,
-      subject: 'Change password',
-      text: `Ваш пароль зміненно.
-      З повагою,
-      команда BookMe`,
+    const payload = {
+      userId: existingUser.id,
+      userName: existingUser.username,
     };
-    if (await this.mailService.sendEmail(mailData)) {
-      return (
-        HttpStatus.OK,
-        'if you are registered, you will shortly receive reset email link'
-      );
-    }
-    throw new ServiceUnavailableException(
-      HttpStatus.SERVICE_UNAVAILABLE,
-      'Service is unavailable',
-    );
+    const tokens = await this.generateTokens(payload);
+
+    // Set cookies
+    this.setAuthCookies(response, tokens);
+
+    return response.redirect(`${process.env.CLIENT_DOMAIN}/dashboard`);
   }
-
-  // async updatePassword(id: number, newPassword: string) {
-  //   return this.userService.updateLoggedDate(id, newPassword);
-
-  // }
 }
