@@ -526,7 +526,7 @@ export class BooksService {
           await this.logsService.save({
             source: 'updateBooksFromArthouse',
             message: 'No books received or invalid response format',
-            code: 1001, // Код ошибки для отсутствия данных
+            code: 1001,
           });
           return {
             status: 204,
@@ -539,14 +539,13 @@ export class BooksService {
           try {
             const serviceBookObject = dumpedBooks[i];
 
-            // Извлечение данных
             const recordReference =
               serviceBookObject?.RecordReference?._text || '';
             if (!recordReference) {
               await this.logsService.save({
                 source: 'updateBooksFromArthouse',
                 message: `Missing RecordReference for book index ${i}`,
-                code: 1002, // Код ошибки для отсутствующего RecordReference
+                code: 1002,
               });
               continue;
             }
@@ -561,7 +560,7 @@ export class BooksService {
               descriptiveDetail?.Extent?.ExtentValue?._text || 0;
             const titleText =
               descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
-                ?._text || 'Без назви';
+                ?._text || '';
 
             const formats = serviceBookObject?.ProductionDetail
               ?.ProductionManifest?.BodyManifest?.BodyResource
@@ -607,42 +606,53 @@ export class BooksService {
               price:
                 productSupply?.SupplyDetail?.Price?.PriceAmount?._text || '0',
               lang: Array.isArray(descriptiveDetail?.Language)
-                ? descriptiveDetail.Language[0]?.LanguageCode?._text ||
-                  'Немає інформації'
-                : descriptiveDetail?.Language?.LanguageCode?._text ||
-                  'Немає інформації',
+                ? descriptiveDetail.Language[0]?.LanguageCode?._text || ''
+                : descriptiveDetail?.Language?.LanguageCode?._text || '',
               desc: Array.isArray(collateralDetail?.TextContent)
-                ? collateralDetail.TextContent[0]?.Text?._cdata || 'Без опису'
-                : collateralDetail?.TextContent?.Text?._cdata || 'Без опису',
+                ? collateralDetail.TextContent[0]?.Text?._cdata || ''
+                : collateralDetail?.TextContent?.Text?._cdata || '',
               author: author,
-              pub:
-                publishingDetail?.Publisher?.PublisherName?._text ||
-                'Автор невідомий',
+              pub: publishingDetail?.Publisher?.PublisherName?._text || '',
               pubDate: Array.isArray(publishingDetail?.PublishingDate)
-                ? publishingDetail.PublishingDate[0]?.Date?._text ||
-                  'Немає інформації'
-                : publishingDetail?.PublishingDate?.Date?._text ||
-                  'Немає інформації',
+                ? publishingDetail.PublishingDate[0]?.Date?._text || ''
+                : publishingDetail?.PublishingDate?.Date?._text || '',
               genre: Array.isArray(descriptiveDetail?.Subject)
-                ? descriptiveDetail.Subject[0]?.SubjectHeadingText?._text ||
-                  'Жанр невідомий'
-                : descriptiveDetail?.Subject?.SubjectHeadingText?._text ||
-                  'Жанр невідомий',
+                ? descriptiveDetail.Subject[0]?.SubjectHeadingText?._text || ''
+                : descriptiveDetail?.Subject?.SubjectHeadingText?._text || '',
               formatMobi: '',
               formatPdf: '',
               formatEpub: '',
             };
 
-            // Объединение книги с форматами
+            // **Логируем, если хотя бы одно поле пустое**
+            const missingFields = Object.entries(newBookData)
+              .filter(
+                ([key, value]) =>
+                  !value ||
+                  value === 'Без назви' ||
+                  value === 'Без автора' ||
+                  value === '0',
+              )
+              .map(([key]) => key);
+
+            if (missingFields.length > 0) {
+              await this.logsService.save({
+                source: 'updateBooksFromArthouse',
+                message: `Book index ${i} was not fully parsed: missing fields - ${missingFields.join(', ')}`,
+                code: 3001,
+                context: JSON.stringify(serviceBookObject, null, 2), // Сохраняем всю книгу в лог
+              });
+            }
+
+            // Объединяем книгу с форматами
             const finalBookData = { ...newBookData, ...formats };
 
-            // Проверка наличия книги по referenceNumber
+            // Проверка наличия книги
             const existingBook = await this.booksRepository.findOneBy({
               referenceNumber: finalBookData.referenceNumber,
             });
 
             if (existingBook) {
-              // Обновление книги
               const originalBook = existingBook.original;
               const updatedOriginal = finalBookData;
 
@@ -658,7 +668,6 @@ export class BooksService {
 
               await this.booksRepository.save(existingBook);
             } else {
-              // Добавление новой книги
               const newBook = this.booksRepository.create({
                 ...finalBookData,
                 original: finalBookData,
@@ -676,7 +685,7 @@ export class BooksService {
             await this.logsService.save({
               source: 'updateBooksFromArthouse',
               message: `Error processing book index ${i}: ${bookError.message}`,
-              code: 2001, // Код ошибки для сбоя обработки книги
+              code: 2001,
             });
           }
         }
@@ -693,7 +702,8 @@ export class BooksService {
       await this.logsService.save({
         source: 'updateBooksFromArthouse',
         message: `Critical error: ${error.message}`,
-        code: 5000, // Код для критических ошибок
+        context: error,
+        code: 5000,
       });
 
       return {

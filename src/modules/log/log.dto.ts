@@ -12,6 +12,9 @@ export class SaveLogDto {
   @IsNotEmpty()
   message: string;
 
+  @IsString()
+  context?: string;
+
   @IsNumber()
   code?: number;
 }

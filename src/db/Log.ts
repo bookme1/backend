@@ -21,6 +21,11 @@ export class Log {
   @IsNotEmpty()
   message: string;
 
+  @Column({ default: '' })
+  @IsString()
+  @IsNotEmpty()
+  context?: string;
+
   @IsNumber()
   @IsNotEmpty()
   code?: number; // Code regarding internal code system
