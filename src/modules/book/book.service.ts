@@ -17,10 +17,12 @@ import { Order } from 'src/db/Order';
 import { Status } from 'src/db/types';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
+import { LogsService } from '../log/log.service';
 
 @Injectable()
 export class BooksService {
   constructor(
+    private logsService: LogsService,
     @InjectRepository(Book)
     private booksRepository: Repository<Book>,
     private httpService: HttpService,
@@ -520,137 +522,166 @@ export class BooksService {
           { count: 30 },
         );
 
-        for (let i = 0; i < dumpedBooks.length; i++) {
-          const serviceBookObject = dumpedBooks[i];
-
-          // Извлечение данных о книге из сервиса
-          const recordReference =
-            serviceBookObject?.RecordReference?._text || '';
-          const descriptiveDetail = serviceBookObject?.DescriptiveDetail || {};
-          const publishingDetail = serviceBookObject?.PublishingDetail || {};
-          const collateralDetail = serviceBookObject?.CollateralDetail || {};
-          const productSupply = serviceBookObject?.ProductSupply || {};
-
-          const pageCount = descriptiveDetail?.Extent?.ExtentValue?._text || 0;
-          const titleText =
-            descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
-              ?._text || 'Без назви';
-
-          const formats = serviceBookObject?.ProductionDetail
-            ?.ProductionManifest?.BodyManifest?.BodyResource
-            ? this.addFormats(
-                serviceBookObject.ProductionDetail.ProductionManifest
-                  .BodyManifest.BodyResource,
-              )
-            : {};
-
-          const personName = [];
-          if (descriptiveDetail.NoContributor) {
-            personName.push('Без автора');
-          } else if (Array.isArray(descriptiveDetail.Contributor)) {
-            descriptiveDetail.Contributor.forEach((el) => {
-              const name = Array.isArray(el)
-                ? el[0]?.PersonName?._text
-                : el?.PersonName?._text;
-              if (name) personName.push(name);
-            });
-          } else {
-            const unnamedContributor =
-              descriptiveDetail?.Contributor?.UnnamedPersons || false;
-            if (!unnamedContributor) {
-              const personNameText =
-                descriptiveDetail?.Contributor?.PersonName?._text ||
-                'Без автора';
-              personName.push(personNameText);
-            }
-          }
-
-          const author = personName.join(', ') || 'Без автора';
-
-          const newBookData = {
-            referenceNumber: recordReference || '',
-            art: '',
-            pages: pageCount || 0,
-            title: titleText || 'Без назви',
-            url: Array.isArray(collateralDetail?.SupportingResource)
-              ? collateralDetail.SupportingResource[0]?.ResourceVersion
-                  ?.ResourceLink?._text || ''
-              : collateralDetail?.SupportingResource?.ResourceVersion
-                  ?.ResourceLink?._text || '',
-            price:
-              productSupply?.SupplyDetail?.Price?.PriceAmount?._text || '0',
-            lang: Array.isArray(descriptiveDetail?.Language)
-              ? descriptiveDetail.Language[0]?.LanguageCode?._text ||
-                'Немає інформації'
-              : descriptiveDetail?.Language?.LanguageCode?._text ||
-                'Немає інформації',
-            desc: Array.isArray(collateralDetail?.TextContent)
-              ? collateralDetail.TextContent[0]?.Text?._cdata || 'Без опису'
-              : collateralDetail?.TextContent?.Text?._cdata || 'Без опису',
-            author: author,
-            pub:
-              publishingDetail?.Publisher?.PublisherName?._text ||
-              'Автор невідомий',
-            pubDate: Array.isArray(publishingDetail?.PublishingDate)
-              ? publishingDetail.PublishingDate[0]?.Date?._text ||
-                'Немає інформації'
-              : publishingDetail?.PublishingDate?.Date?._text ||
-                'Немає інформації',
-            genre: Array.isArray(descriptiveDetail?.Subject)
-              ? descriptiveDetail.Subject[0]?.SubjectHeadingText?._text ||
-                'Жанр невідомий'
-              : descriptiveDetail?.Subject?.SubjectHeadingText?._text ||
-                'Жанр невідомий',
-            formatMobi: '',
-            formatPdf: '',
-            formatEpub: '',
-          };
-
-          // Объединение книги с форматами, если такие есть
-          const finalBookData = { ...newBookData, ...formats };
-
-          // 1. Проверка наличия книги по referenceNumber
-          const existingBook = await this.booksRepository.findOneBy({
-            referenceNumber: finalBookData.referenceNumber,
+        if (!dumpedBooks || !Array.isArray(dumpedBooks)) {
+          await this.logsService.save({
+            source: 'updateBooksFromArthouse',
+            message: 'No books received or invalid response format',
+            code: 1001, // Код ошибки для отсутствия данных
           });
-
-          if (existingBook) {
-            // 2. Если книга найдена, обновляем original и кастомные данные
-            // Сравниваем оригинальные данные с новыми
-            const originalBook = existingBook.original;
-            const updatedOriginal = finalBookData;
-
-            // Обновляем оригинал
-            existingBook.original = updatedOriginal;
-
-            // Обновляем кастомные данные, если они совпадают с оригинальными
-            Object.keys(finalBookData).forEach((key) => {
-              if (existingBook[key] === originalBook[key]) {
-                existingBook[key] = finalBookData[key];
-              }
-            });
-
-            // Обновляем поле originalModifiedAt
-            existingBook.header.originalModifiedAt = new Date().toISOString();
-
-            await this.booksRepository.save(existingBook);
-          } else {
-            // 3. Если книга не найдена, добавляем новую
-            const newBook = this.booksRepository.create({
-              ...finalBookData,
-              original: finalBookData,
-              header: {
-                createdAt: new Date().toISOString(),
-                originalModifiedAt: new Date().toISOString(),
-              },
-            });
-
-            await this.booksRepository.save(newBook);
-          }
-
-          dumpedQuantity += 1;
+          return {
+            status: 204,
+            message: 'No books to update',
+            updated: dumpedQuantity,
+          };
         }
-      } while (dumpedQuantity < 30 && dumpedBooks.length !== 0); // Пока есть данные, продолжаем обновление
+
+        for (let i = 0; i < dumpedBooks.length; i++) {
+          try {
+            const serviceBookObject = dumpedBooks[i];
+
+            // Извлечение данных
+            const recordReference =
+              serviceBookObject?.RecordReference?._text || '';
+            if (!recordReference) {
+              await this.logsService.save({
+                source: 'updateBooksFromArthouse',
+                message: `Missing RecordReference for book index ${i}`,
+                code: 1002, // Код ошибки для отсутствующего RecordReference
+              });
+              continue;
+            }
+
+            const descriptiveDetail =
+              serviceBookObject?.DescriptiveDetail || {};
+            const publishingDetail = serviceBookObject?.PublishingDetail || {};
+            const collateralDetail = serviceBookObject?.CollateralDetail || {};
+            const productSupply = serviceBookObject?.ProductSupply || {};
+
+            const pageCount =
+              descriptiveDetail?.Extent?.ExtentValue?._text || 0;
+            const titleText =
+              descriptiveDetail?.TitleDetail?.[0]?.TitleElement?.[0]?.TitleText
+                ?._text || 'Без назви';
+
+            const formats = serviceBookObject?.ProductionDetail
+              ?.ProductionManifest?.BodyManifest?.BodyResource
+              ? this.addFormats(
+                  serviceBookObject.ProductionDetail.ProductionManifest
+                    .BodyManifest.BodyResource,
+                )
+              : {};
+
+            const personName = [];
+            if (descriptiveDetail.NoContributor) {
+              personName.push('Без автора');
+            } else if (Array.isArray(descriptiveDetail.Contributor)) {
+              descriptiveDetail.Contributor.forEach((el) => {
+                const name = Array.isArray(el)
+                  ? el[0]?.PersonName?._text
+                  : el?.PersonName?._text;
+                if (name) personName.push(name);
+              });
+            } else {
+              const unnamedContributor =
+                descriptiveDetail?.Contributor?.UnnamedPersons || false;
+              if (!unnamedContributor) {
+                const personNameText =
+                  descriptiveDetail?.Contributor?.PersonName?._text ||
+                  'Без автора';
+                personName.push(personNameText);
+              }
+            }
+
+            const author = personName.join(', ') || 'Без автора';
+
+            const newBookData = {
+              referenceNumber: recordReference,
+              art: '',
+              pages: pageCount,
+              title: titleText,
+              url: Array.isArray(collateralDetail?.SupportingResource)
+                ? collateralDetail.SupportingResource[0]?.ResourceVersion
+                    ?.ResourceLink?._text || ''
+                : collateralDetail?.SupportingResource?.ResourceVersion
+                    ?.ResourceLink?._text || '',
+              price:
+                productSupply?.SupplyDetail?.Price?.PriceAmount?._text || '0',
+              lang: Array.isArray(descriptiveDetail?.Language)
+                ? descriptiveDetail.Language[0]?.LanguageCode?._text ||
+                  'Немає інформації'
+                : descriptiveDetail?.Language?.LanguageCode?._text ||
+                  'Немає інформації',
+              desc: Array.isArray(collateralDetail?.TextContent)
+                ? collateralDetail.TextContent[0]?.Text?._cdata || 'Без опису'
+                : collateralDetail?.TextContent?.Text?._cdata || 'Без опису',
+              author: author,
+              pub:
+                publishingDetail?.Publisher?.PublisherName?._text ||
+                'Автор невідомий',
+              pubDate: Array.isArray(publishingDetail?.PublishingDate)
+                ? publishingDetail.PublishingDate[0]?.Date?._text ||
+                  'Немає інформації'
+                : publishingDetail?.PublishingDate?.Date?._text ||
+                  'Немає інформації',
+              genre: Array.isArray(descriptiveDetail?.Subject)
+                ? descriptiveDetail.Subject[0]?.SubjectHeadingText?._text ||
+                  'Жанр невідомий'
+                : descriptiveDetail?.Subject?.SubjectHeadingText?._text ||
+                  'Жанр невідомий',
+              formatMobi: '',
+              formatPdf: '',
+              formatEpub: '',
+            };
+
+            // Объединение книги с форматами
+            const finalBookData = { ...newBookData, ...formats };
+
+            // Проверка наличия книги по referenceNumber
+            const existingBook = await this.booksRepository.findOneBy({
+              referenceNumber: finalBookData.referenceNumber,
+            });
+
+            if (existingBook) {
+              // Обновление книги
+              const originalBook = existingBook.original;
+              const updatedOriginal = finalBookData;
+
+              existingBook.original = updatedOriginal;
+
+              Object.keys(finalBookData).forEach((key) => {
+                if (existingBook[key] === originalBook[key]) {
+                  existingBook[key] = finalBookData[key];
+                }
+              });
+
+              existingBook.header.originalModifiedAt = new Date().toISOString();
+
+              await this.booksRepository.save(existingBook);
+            } else {
+              // Добавление новой книги
+              const newBook = this.booksRepository.create({
+                ...finalBookData,
+                original: finalBookData,
+                header: {
+                  createdAt: new Date().toISOString(),
+                  originalModifiedAt: new Date().toISOString(),
+                },
+              });
+
+              await this.booksRepository.save(newBook);
+            }
+
+            dumpedQuantity += 1;
+          } catch (bookError) {
+            await this.logsService.save({
+              source: 'updateBooksFromArthouse',
+              message: `Error processing book index ${i}: ${bookError.message}`,
+              code: 2001, // Код ошибки для сбоя обработки книги
+            });
+          }
+        }
+      } while (dumpedQuantity < 30 && dumpedBooks.length !== 0);
+
       return {
         status: dumpedQuantity == 30 ? 201 : 204,
         message: 'Chunk update succeed',
@@ -658,6 +689,12 @@ export class BooksService {
       };
     } catch (error) {
       console.error('Error updating books from Arthouse:', error);
+
+      await this.logsService.save({
+        source: 'updateBooksFromArthouse',
+        message: `Critical error: ${error.message}`,
+        code: 5000, // Код для критических ошибок
+      });
 
       return {
         status: 409,

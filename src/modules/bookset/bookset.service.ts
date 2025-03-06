@@ -1,6 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateBooksetDto } from './dto/create-bookset.dto';
-// import { UpdateBooksetDto } from './dto/update-bookset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { BooksService } from '../book/book.service';
@@ -37,17 +40,17 @@ export class BooksetService {
     updateBooksetDto: UpdateBooksetDto,
   ): Promise<Bookset> {
     const { title, books, header } = updateBooksetDto;
-  
+
     // check if bookset exists
     const bookSet = await this.bookSetRepository.findOne({
       where: { id },
       relations: ['books'],
     });
-  
+
     if (!bookSet) {
       throw new NotFoundException(`Book set with ID ${id} not found`);
     }
-  
+
     // Start transaction
     await this.bookSetRepository.manager.transaction(
       async (entityManager: EntityManager) => {
@@ -55,27 +58,27 @@ export class BooksetService {
         if (title) {
           bookSet.title = title;
         }
-  
+
         // Update books
         if (books && books.length > 0) {
           const bookEntities = await this.booksService.findBooksByIds(books);
-  
+
           if (bookEntities.length !== books.length) {
             throw new BadRequestException('One or more books were not found');
           }
-  
+
           bookSet.books = bookEntities;
         }
-  
+
         // Update header
         bookSet.header.editedBy = header?.editedBy || bookSet.header.editedBy;
         bookSet.header.editedAt = new Date();
-  
+
         // Save changes
         await entityManager.save(bookSet);
       },
     );
-  
+
     // Return updated bookset
     return this.bookSetRepository.findOne({
       where: { id },

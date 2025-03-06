@@ -8,10 +8,13 @@ import { Order } from 'src/db/Order';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { JwtModule } from '@nestjs/jwt';
+import { LogsModule } from '../log/log.module';
+import { Log } from 'src/db/Log';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Book, Order, User, OrderBook]),
+    TypeOrmModule.forFeature([Book, Order, User, OrderBook, Log]),
+    LogsModule,
     HttpModule,
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET,
