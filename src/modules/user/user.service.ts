@@ -165,13 +165,6 @@ export class UserService {
     return this.repository.findOne({ where: { email } });
   }
 
-  async updatePassword(id: number, password: string) {
-    const user = await this.getById(id);
-    user.password = password;
-
-    return await this.saveUser(user);
-  }
-
   async saveUser(payload: Partial<User>): Promise<User | null> {
     return await this.repository.save(payload);
   }

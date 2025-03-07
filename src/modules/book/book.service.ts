@@ -18,8 +18,8 @@ import { Status } from 'src/db/types';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { readText, toArray } from './helper';
-import { OnixContributorRole } from '@onix/types/enums';
 import { LogsService } from '../log/log.service';
+import { BookExtractor } from './lib/onixExtractor';
 
 @Injectable()
 export class BooksService {
@@ -511,6 +511,12 @@ export class BooksService {
 
   async updateBooksFromArthouse() {
     try {
+      this.logsService.save({
+        source: 'updateBooksFromArthouse',
+        message: 'Starting book update process from Arthouse...',
+        code: 1000,
+      });
+
       let dumpedBooks;
       let dumpedQuantity = 0;
 
@@ -524,92 +530,93 @@ export class BooksService {
           { count: 30 },
         );
 
-        for (const serviceBookObject of dumpedBooks) {
-          // Извлечение ключевых данных
-          const recordReference =
-            serviceBookObject?.RecordReference?._text || '';
-          const descriptiveDetail = serviceBookObject?.DescriptiveDetail || {};
-          const publishingDetail = serviceBookObject?.PublishingDetail || {};
-          const collateralDetail = serviceBookObject?.CollateralDetail || {};
-          const productSupply = serviceBookObject?.ProductSupply || {};
-
-          // Парсим основные поля
-          const titleText = this.extractTitle(descriptiveDetail);
-          const authors = this.extractAuthors(descriptiveDetail);
-          const genres = this.extractGenres(descriptiveDetail);
-          const pageCount = this.extractPageCount(descriptiveDetail);
-          const language = this.extractLanguage(descriptiveDetail);
-          const description = this.extractDescription(collateralDetail);
-          const price = this.extractPrice(productSupply);
-          const publisher = this.extractPublisher(publishingDetail);
-
-          const newBookData = {
-            referenceNumber: recordReference,
-            title: titleText || 'Без назви',
-            authors,
-            genres,
-            pages: pageCount || 0,
-            lang: language || 'Немає інформації',
-            desc: description || 'Без опису',
-            pub: publisher || 'Автор невідомий',
-            price: price || '0',
-          };
-
-          // Проверяем наличие книги в БД
-          const existingBook = await this.booksRepository.findOneBy({
-            referenceNumber: newBookData.referenceNumber,
+        if (!dumpedBooks || !Array.isArray(dumpedBooks)) {
+          await this.logsService.save({
+            source: 'updateBooksFromArthouse',
+            message: 'No books received or invalid response format',
+            code: 1001,
           });
-
-          if (existingBook) {
-            // Обновляем только изменённые поля
-            Object.keys(newBookData).forEach((key) => {
-              if (
-                newBookData[key] &&
-                (!existingBook[key] ||
-                  existingBook[key] === existingBook.original[key])
-              ) {
-                existingBook[key] = newBookData[key];
-              }
-            });
-
-            // Обновляем оригинальные данные и мета-информацию
-            existingBook.original = {
-              ...existingBook.original,
-              ...newBookData,
-            };
-            existingBook.header.originalModifiedAt = new Date().toISOString();
-
-            await this.booksRepository.save(existingBook);
-          } else {
-            // Создаём новую запись
-            const newBook = this.booksRepository.create({
-              ...newBookData,
-              original: newBookData,
-              header: {
-                createdAt: new Date().toISOString(),
-                originalModifiedAt: new Date().toISOString(),
-              },
-            });
-
-            await this.booksRepository.save(newBook);
-          }
-
-          dumpedQuantity += 1;
+          return {
+            status: 204,
+            message: 'No books to update',
+            updated: dumpedQuantity,
+          };
         }
-      } while (dumpedBooks.length > 0); // Продолжаем до тех пор, пока сервер возвращает данные
+
+        for (let i = 0; i < dumpedBooks.length; i++) {
+          try {
+            const serviceBookObject = dumpedBooks[i];
+
+            const extractor = new BookExtractor(this.logsService);
+            const newBookData = await extractor.extractBookData(
+              serviceBookObject,
+              i,
+            );
+
+            // Проверяем, есть ли книга в базе
+            const existingBook = await this.booksRepository.findOneBy({
+              referenceNumber: newBookData.referenceNumber,
+            });
+
+            if (existingBook) {
+              const modifiedAt = new Date().toISOString();
+
+              // Обновляем только изменённые поля
+              const updatedBook = {
+                ...existingBook,
+                ...newBookData,
+                header: {
+                  ...existingBook.header,
+                  originalModifiedAt: modifiedAt,
+                },
+              };
+
+              await this.booksRepository.save(updatedBook);
+            } else {
+              const newBook = this.booksRepository.create({
+                ...newBookData,
+                header: {
+                  createdAt: new Date().toISOString(),
+                  originalModifiedAt: new Date().toISOString(),
+                },
+              });
+
+              await this.booksRepository.save(newBook);
+              await this.logsService.save({
+                source: 'updateBooksFromArthouse',
+                message: `Created new book: ${newBook.title} (Ref: ${newBook.referenceNumber})`,
+                code: 2001,
+              });
+            }
+
+            dumpedQuantity += 1;
+          } catch (bookError) {
+            await this.logsService.save({
+              source: 'updateBooksFromArthouse',
+              message: `Error processing book index ${i}: ${bookError.message}`,
+              code: 4001,
+              context: JSON.stringify(bookError, null, 2),
+            });
+          }
+        }
+      } while (dumpedQuantity < 90 && dumpedBooks.length !== 0);
+
+      this.logsService.save({
+        source: 'updateBooksFromArthouse',
+        message: `Finished processing books. Total updated: ${dumpedQuantity}`,
+        code: 1003,
+      });
 
       return {
-        status: dumpedQuantity > 0 ? 201 : 204,
+        status: dumpedQuantity == 30 ? 201 : 204,
         message: 'Chunk update succeed',
         updated: dumpedQuantity,
       };
     } catch (error) {
-      console.error('Error updating books from Arthouse:', error);
-
       await this.logsService.save({
         source: 'updateBooksFromArthouse',
         message: `Critical error: ${error.message}`,
-        context: error,
+        context: JSON.stringify(error, null, 2),
         code: 5000,
       });
 
@@ -619,55 +626,6 @@ export class BooksService {
         error,
       };
     }
-  }
-
-  private extractAuthors(descriptiveDetail: any): string[] {
-    if (descriptiveDetail.NoContributor) return ['Без автора'];
-
-    const contributors = descriptiveDetail?.Contributor || [];
-    const authors = contributors
-      .filter((c) => c.ContributorRole?.includes(OnixContributorRole.Author)) // Фильтруем только авторов
-      .map((c) => c.PersonName?._text || 'Без імені');
-    return authors.length ? authors : ['Без автора'];
-  }
-
-  private extractGenres(descriptiveDetail: any): string[] {
-    const subjects = descriptiveDetail?.Subject || [];
-    return subjects.map((s) => s.SubjectHeadingText?._text || 'Жанр невідомий');
-  }
-
-  private extractTitle(descriptiveDetail: any): string {
-    const titleDetail = descriptiveDetail?.TitleDetail?.[0];
-    const titleElement = titleDetail?.TitleElement?.[0];
-    return titleElement?.TitleText?._text || 'Без назви';
-  }
-
-  private extractPageCount(descriptiveDetail: any): number {
-    const extent = descriptiveDetail?.Extent?.find(
-      (e) => e.ExtentType === '00',
-    ); // Тип 00 = Pages
-    return extent?.ExtentValue?._text || 0;
-  }
-
-  private extractLanguage(descriptiveDetail: any): string {
-    const language = descriptiveDetail?.Language?.[0];
-    return language?.LanguageCode?._text || 'Немає інформації';
-  }
-
-  private extractDescription(collateralDetail: any): string {
-    const textContent = collateralDetail?.TextContent?.[0];
-    return textContent?.Text?._cdata || 'Без опису';
-  }
-
-  private extractPrice(productSupply: any): string {
-    const supplyDetail = productSupply?.SupplyDetail;
-    return supplyDetail?.Price?.PriceAmount?._text || '0';
-  }
-
-  private extractPublisher(publishingDetail: any): string {
-    return (
-      publishingDetail?.Publisher?.PublisherName?._text || 'Автор невідомий'
-    );
   }
 
   async refillItemsQueue() {
