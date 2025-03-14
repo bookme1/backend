@@ -22,7 +22,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) { }
+  ) {}
 
   public async login(email: string, password: string, response: Response) {
     const user = await this.userService.getByEmail(email);
@@ -101,9 +101,16 @@ export class AuthService {
   }
 
   async logout(response: Response) {
-    response.clearCookie('accessToken', { httpOnly: true, secure: true });
-    response.clearCookie('refreshToken', { httpOnly: true, secure: true });
-    return { message: 'Logged out successfully' };
+    response.clearCookie('accessToken', {
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+    response.clearCookie('refreshToken', {
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    response.status(200).json({ message: 'Logged out successfully' });
   }
 
   async sendPasswordResetLink(dto: ForgotPasswordDto) {

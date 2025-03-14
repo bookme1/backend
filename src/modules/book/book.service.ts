@@ -599,7 +599,7 @@ export class BooksService {
             });
           }
         }
-      } while (dumpedQuantity < 90 && dumpedBooks.length !== 0);
+      } while (dumpedQuantity < 240 && dumpedBooks.length !== 0);
 
       this.logsService.save({
         source: 'updateBooksFromArthouse',
