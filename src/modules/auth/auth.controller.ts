@@ -18,7 +18,9 @@ import {
   ForgotPasswordDto,
   PasswordResetDto,
 } from 'src/modules/auth/auth.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { constants } from 'src/config/constants';
+import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
 import { Role } from 'src/db/types';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -73,9 +75,9 @@ export class AuthController {
   }
 
   @Post('refresh')
-  public async refresh(@Req() request: Request, @Res() response: Response) {
-    const result = await this.authService.refreshTokens(response, request);
-    console.warn(response.getHeaders());
+  refresh(@Res() response: Response, @Req() request: Request) {
+    const result = this.authService.refreshTokens(response, request);
+
     response.json(result);
   }
 
