@@ -11,8 +11,10 @@ import { PingModule } from '../ping/ping.module';
 import { AdminModule } from '../admin/admin.module';
 import { OrderModule } from '../order/order.module';
 import { MailModule } from '../mail/mail.module';
-import { EmailVerificationModule } from '../email-verification/email-verification.module';
 import { BooksetModule } from '../bookset/bookset.module';
+import { OnixModule } from '../onix/onix.module';
+import { LogsModule } from '../log/log.module';
+import { EmailVerificationModule } from '../emailVerification/emailVerification.module';
 
 @Module({
   imports: [
@@ -23,10 +25,12 @@ import { BooksetModule } from '../bookset/bookset.module';
     FilterModule, // all operations for filtering books
     PingModule, // all operations to receive data from platform Elibri
     AdminModule, // all operations to send data to admin panel(users,books,operations, metrics)
+    LogsModule, // all logs
     OrderModule,
     MailModule,
-    EmailVerificationModule,
+    EmailVerificationModule, // user's email verification
     BooksetModule,
+    OnixModule,
   ],
 })
 export class AppModule {

@@ -7,7 +7,7 @@ import { ValidationError } from 'class-validator';
 @Injectable()
 export class ValidationErrorMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    const err = res.locals.error; // Поддерживается, если вы устанавливаете res.locals.error где-то раньше
+    const err = res.locals.error;
 
     if (
       err instanceof Array &&
@@ -20,7 +20,7 @@ export class ValidationErrorMiddleware implements NestMiddleware {
       });
     }
 
-    next(); // Вызывайте next без аргументов
+    next();
   }
 
   private formatValidationErrors(errors: ValidationError[]) {

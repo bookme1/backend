@@ -19,6 +19,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
+  "_moduleAliaces": {
+    "@onix": "dist/modules/onix/lib/*"
+  },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/axios": "^3.0.2",
@@ -29,6 +32,7 @@
     "@nestjs/microservices": "^10.4.4",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/schedule": "^5.0.1",
     "@nestjs/swagger": "^7.1.17",
     "@nestjs/typeorm": "^10.0.1",
     "axios": "^1.7.2",
@@ -43,6 +47,7 @@
     "dotenv": "^16.3.1",
     "fast-xml-parser": "^4.5.1",
     "https": "^1.0.0",
+    "module-alias": "^2.2.3",
     "node-fetch": "^2.7.0",
     "nodemailer": "^6.9.14",
     "passport": "^0.7.0",

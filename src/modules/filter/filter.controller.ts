@@ -24,7 +24,7 @@ export class FilterController {
   @Get('')
   @UseInterceptors(CacheInterceptor)
   public async getFilters() {
-    const cachedGenres = await this.redisService.get('allGenres');
+    const cachedGenres = await this.redisService.get('genres');
 
     //If we have cached genres -> return it
     if (cachedGenres != undefined) {

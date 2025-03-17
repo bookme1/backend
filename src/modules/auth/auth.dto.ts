@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsEnum,
   IsString,
+  IsUUID,
 } from 'class-validator';
 import { Role } from 'src/db/types';
 
@@ -50,10 +51,15 @@ export class EmailSignupDto {
   role?: Role;
 }
 
-export class EmailVerifyDto {
+export class VerifyEmailDTO {
   @IsString()
   @IsNotEmpty()
-  emailToken!: string;
+  userId!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUUID()
+  token!: string;
 }
 
 export class PasswordRecoveryDto {

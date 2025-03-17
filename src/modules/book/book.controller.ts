@@ -25,12 +25,21 @@ import {
   WatermarkDTO,
 } from './book.dto';
 import { constants } from 'src/config/constants';
+import { Book } from 'src/db/Book';
+import { Repository } from 'typeorm';
+import { OnixService } from '../onix/onix.service';
+import { InjectRepository } from '@nestjs/typeorm';
 import { AuthGuard } from '../auth/strategies/accessToken.strategy';
 
 @ApiTags('book')
 @Controller('api/book')
 export class BooksController {
-  constructor(private readonly bookService: BooksService) {}
+  constructor(
+    private readonly bookService: BooksService,
+    private readonly onixService: OnixService,
+    @InjectRepository(Book)
+    private readonly bookRepository: Repository<Book>,
+  ) {}
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Get('')
@@ -42,6 +51,97 @@ export class BooksController {
   @Get('/filter')
   public getFiltered(@Query() booksFilterDto: FilterBookDto) {
     return this.bookService.filterItems(booksFilterDto);
+  }
+
+  @Get('update-from-arthouse')
+  async updateBooksFromArthouse() {
+    let totalUpdated = 0;
+
+    try {
+      // Инициализация переменных для чанков
+      const chunkSize = 30;
+      let hasMoreData = true;
+
+      while (hasMoreData) {
+        // 1. Получаем данные текущего чанка
+        const products = await this.onixService.makeDigestRequest(
+          'platform.elibri.com.ua', // host
+          '/api/v1/queues/meta/pop', // path
+          'POST', // method
+          'bookme', // username
+          '64db6ffd98a76c2b879c', // password
+          { count: chunkSize }, // postData
+          false, // useHttps = false
+        );
+
+        if (!products || products.length === 0) {
+          hasMoreData = false; // Если нет данных, выходим из цикла
+          // this.logger.log('No more products to update.');
+          break;
+        }
+
+        // this.logger.log(`Processing chunk of ${products.length} products...`);
+
+        // 2. Обновление книг из текущего чанка
+        const updatedBooks = await Promise.all(
+          products.map(async (product) => {
+            const finalBookData =
+              await this.onixService.parseOnixProduct(product);
+            return this.upsertBook(finalBookData);
+          }),
+        );
+
+        totalUpdated += updatedBooks.length;
+      }
+
+      // this.logger.log(`Successfully updated a total of ${totalUpdated} books.`);
+      return {
+        status: 201,
+        message: 'All chunks updated successfully',
+        updated: totalUpdated,
+      };
+    } catch (error) {
+      // this.logger.error('Error updating books from Arthouse:', error.stack);
+      return {
+        status: 500,
+        message: 'Update failed',
+        error: error.message,
+      };
+    }
+  }
+
+  // Сохранение или обновление книги
+  private async upsertBook(finalBookData: any) {
+    const existingBook = await this.bookRepository.findOne({
+      where: { referenceNumber: finalBookData.referenceNumber },
+    });
+
+    if (existingBook) {
+      // Обновление существующей книги
+      const updatedBook = {
+        ...existingBook,
+        ...finalBookData,
+        header: {
+          ...existingBook.header,
+          originalModifiedAt: new Date().toISOString(),
+        },
+      };
+      await this.bookRepository.save(updatedBook);
+      return updatedBook;
+    } else {
+      // Создание новой книги
+      const newBook = this.bookRepository.create({
+        ...finalBookData,
+        header: {
+          createdAt: new Date().toISOString(),
+          originalModifiedAt: new Date().toISOString(),
+          modifiedAt: '',
+          modifiedBy: 0,
+        },
+      });
+      await this.bookRepository.save(newBook);
+      return newBook;
+    }
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))

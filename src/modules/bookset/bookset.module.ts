@@ -7,9 +7,16 @@ import { Book } from 'src/db/Book';
 import { BooksService } from '../book/book.service';
 import { BooksModule } from '../book/book.module';
 import { HttpModule } from '@nestjs/axios';
+import { Log } from 'src/db/Log';
+import { LogsModule } from '../log/log.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Bookset, Book]), BooksModule, HttpModule],
+  imports: [
+    TypeOrmModule.forFeature([Bookset, Book, Log]),
+    BooksModule,
+    HttpModule,
+    LogsModule,
+  ],
   controllers: [BooksetController],
   providers: [BooksetService, BooksService],
   exports: [TypeOrmModule],

@@ -5,7 +5,6 @@ export class DecodedQueryParamValidationPipe
   implements PipeTransform<string, string>
 {
   transform(value: string): string {
-    return 'bebra';
     try {
       return decodeURIComponent(value);
     } catch (error) {
