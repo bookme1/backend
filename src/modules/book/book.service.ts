@@ -563,10 +563,8 @@ export class BooksService {
 
               // Обновляем только изменённые поля
               const updatedBook = {
-                ...existingBook,
                 ...newBookData,
                 header: {
-                  ...existingBook.header,
                   originalModifiedAt: modifiedAt,
                 },
               };
@@ -595,7 +593,7 @@ export class BooksService {
               source: 'updateBooksFromArthouse',
               message: `Error processing book index ${i}: ${bookError.message}`,
               code: 4001,
-              context: JSON.stringify(bookError, null, 2),
+              context: JSON.stringify(dumpedBooks[i], null, 2),
             });
           }
         }
@@ -964,7 +962,7 @@ export class BooksService {
     }
   }
 
-  public parseOnixProduct(product: any) {
+  public async parseOnixProduct(product: any) {
     // Считываем RecordReference
     const recordReference = readText(product?.RecordReference, '');
 
@@ -1014,21 +1012,27 @@ export class BooksService {
         desc = readText(textContents[0]?.Text, 'Без опису');
       }
       // cover
+
       const sResources = toArray(product.CollateralDetail.SupportingResource);
       if (sResources.length > 0) {
-        const resourceVerArr = toArray(sResources[0]?.ResourceVersion);
-        if (resourceVerArr.length > 0) {
-          url = readText(resourceVerArr[0]?.ResourceLink, '');
+        for (const resource of sResources) {
+          const resourceVerArr = toArray(resource.ResourceVersion);
+          for (const version of resourceVerArr) {
+            if (version?.ResourceLink) {
+              url = readText(version.ResourceLink, '');
+              if (url) break; // First found URL
+            }
+          }
+          if (url) break;
         }
       }
     }
 
     // price
-    let price = '0';
+    let price = 0;
     if (product?.ProductSupply?.SupplyDetail?.Price?.PriceAmount) {
-      price = readText(
-        product.ProductSupply.SupplyDetail.Price.PriceAmount,
-        '0',
+      price = Number(
+        readText(product.ProductSupply.SupplyDetail.Price.PriceAmount, '0'),
       );
     }
 

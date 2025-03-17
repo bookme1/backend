@@ -62,8 +62,8 @@ export class Book {
   @IsString()
   url!: string;
 
-  @Column({ default: '' })
-  price!: string;
+  @Column({ default: 0 })
+  price!: number;
 
   @Column({ default: 0 })
   pages!: number;
