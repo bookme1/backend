@@ -10,8 +10,7 @@ export function toArray<T>(value: T | T[]): T[] {
  */
 export function readText(obj: any, fallback = ''): string {
   if (!obj) return fallback;
-  if (typeof obj['#text'] === 'string') {
-    return obj['#text'].trim();
-  }
+  if (typeof obj._text === 'string') return obj._text.trim();
+  if (typeof obj['#text'] === 'string') return obj['#text'].trim();
   return fallback;
 }

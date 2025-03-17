@@ -196,8 +196,8 @@ export class BookExtractor {
     return 'Без назви';
   }
 
-  private extractPrice(supplyDetail: any): string {
-    return supplyDetail?.Price?.PriceAmount?._text || '0';
+  private extractPrice(supplyDetail: any): number {
+    return Number(supplyDetail?.Price?.PriceAmount?._text) || 0;
   }
 
   private extractPageCount(extents: any): number {

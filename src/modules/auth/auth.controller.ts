@@ -66,18 +66,20 @@ export class AuthController {
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Post('register')
-  public signupEmail(
+  public async signupEmail(
     @Body() signupEmailDto: EmailSignupDto,
     @Res() res: Response,
     @Query('role') role?: Role,
   ) {
-    return this.authService.register(
+    const result = await this.authService.register(
       signupEmailDto.username,
       signupEmailDto.email,
       signupEmailDto.password,
       role,
       res,
     );
+
+    res.json(result);
   }
 
   @Post('refresh')

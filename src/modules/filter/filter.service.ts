@@ -104,7 +104,7 @@ export class FilterService {
       genres.add(book.genre);
       languages.add(book.lang);
 
-      const price = parseFloat(book.price);
+      const price = book.price;
       if (!isNaN(price)) {
         if (price < minPrice) {
           minPrice = price;
