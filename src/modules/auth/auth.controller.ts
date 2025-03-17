@@ -12,18 +12,16 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  EmailGoogleDto,
   EmailLoginDto,
   EmailSignupDto,
   ForgotPasswordDto,
   PasswordResetDto,
 } from 'src/modules/auth/auth.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { constants } from 'src/config/constants';
-import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { ApiTags } from '@nestjs/swagger';
 import { Role } from 'src/db/types';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { GoogleAuthenticatedRequest } from 'src/common/types/AuthenticatedRequest';
 
 @ApiTags('auth')
 @Controller('api/auth')
@@ -46,16 +44,20 @@ export class AuthController {
   }
 
   // Redirect to Google
-  @Get('google')
+  @Get('signin/google')
   @UseGuards(AuthGuard('google'))
   async googleAuth() {
     // Empty method, redirect automatically
   }
 
-  @Get('google/callback')
+  @Get('signin/google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Body() user: EmailGoogleDto, @Res() res: Response) {
-    return this.authService.googleAuthCallback(user, res);
+  async googleAuthRedirect(
+    @Req() req: GoogleAuthenticatedRequest,
+    @Res() res: Response,
+  ) {
+    const googleUser = req.user;
+    await this.authService.googleAuthCallback(googleUser, res);
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
@@ -77,7 +79,6 @@ export class AuthController {
   @Post('refresh')
   refresh(@Res() response: Response, @Req() request: Request) {
     const result = this.authService.refreshTokens(response, request);
-
     response.json(result);
   }
 
