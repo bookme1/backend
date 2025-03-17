@@ -7,6 +7,7 @@ import { Order } from './Order';
 import { OrderBook } from './OrderBook';
 import { Bookset } from './Bookset';
 import { Log } from './Log';
+import { VerificationToken } from './VerificationToken';
 //import { Filter } from './Filter';
 
 const envConfig = getConfig();
@@ -18,7 +19,16 @@ const config: TypeOrmModuleOptions = {
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: 'bookme_api',
-  entities: [User, Book, Ping, Order, OrderBook, Bookset, Log], // Filter has to be there too
+  entities: [
+    User,
+    Book,
+    Ping,
+    Order,
+    OrderBook,
+    Bookset,
+    Log,
+    VerificationToken,
+  ], // Filter has to be there too
   synchronize: true,
   ssl: { rejectUnauthorized: false },
   migrations: [`src/db/migrations/*.{ts,js}`],

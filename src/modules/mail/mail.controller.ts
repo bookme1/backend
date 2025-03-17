@@ -1,22 +1,41 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { MailService } from './mail.service';
 import { ApiTags } from '@nestjs/swagger';
+import { EmailTemplateDTO } from './mail-interface';
+
 @ApiTags('mail')
 @Controller('mail')
 export class MailController {
   constructor(private readonly mailService: MailService) {}
 
-  @Get()
-  sendMail(): void {
-    return this.mailService.sendMail();
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Post('/')
+  async sendVerification(@Body() emailTemplate: EmailTemplateDTO) {
+    await this.mailService.sendEmail(emailTemplate);
+    return { message: 'Email sent successfully.' };
   }
 
+  // @Get('verify-email')
+  // async verifyEmail(@Query('token') token: string) {
+  // const result = await this.mailService.verifyUserByToken(token);
+  //   if (!result) {
+  //     throw new BadRequestException('Invalid or expired verification token.');
+  //   }
+  //   return { message: 'Email verified successfully.' };
+  // }
+
   @Post('send-all')
-  async sendAllEmail(
+  async sendAllEmails(
     @Body('subject') subject: string,
     @Body('content') content: string,
   ) {
-    await this.mailService.sendAllEmail(subject, content);
-    return { message: 'Emails are being sent' };
+    await this.mailService.sendAllEmails(subject, content);
+    return { message: 'Bulk emails are being sent.' };
   }
 }

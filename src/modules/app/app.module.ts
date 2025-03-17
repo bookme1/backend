@@ -11,10 +11,10 @@ import { PingModule } from '../ping/ping.module';
 import { AdminModule } from '../admin/admin.module';
 import { OrderModule } from '../order/order.module';
 import { MailModule } from '../mail/mail.module';
-import { EmailVerificationModule } from '../email-verification/email-verification.module';
 import { BooksetModule } from '../bookset/bookset.module';
 import { OnixModule } from '../onix/onix.module';
 import { LogsModule } from '../log/log.module';
+import { EmailVerificationModule } from '../emailVerification/emailVerification.module';
 
 @Module({
   imports: [
@@ -28,7 +28,7 @@ import { LogsModule } from '../log/log.module';
     LogsModule, // all logs
     OrderModule,
     MailModule,
-    EmailVerificationModule,
+    EmailVerificationModule, // user's email verification
     BooksetModule,
     OnixModule,
   ],

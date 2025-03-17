@@ -1,74 +1,81 @@
-import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
-import { SentMessageInfo } from 'nodemailer';
-import { EmailTemplateParams } from './mail-interface';
-
+import { MailerService } from '@nestjs-modules/mailer';
 import { UserService } from '../user/user.service';
-import { EmailVerificationService } from '../email-verification/email-verification.service';
+import { EmailTemplateDTO } from './mail-interface';
 
 @Injectable()
 export class MailService {
-  sendMail(): void {
-    throw new Error('Method not implemented.');
-  }
-
   constructor(
-    private mailerService: MailerService,
-    private userService: UserService,
-    private emailVerificationService: EmailVerificationService,
+    private readonly mailerService: MailerService,
+    private readonly userService: UserService,
   ) {}
 
-  async sendEmail(params: EmailTemplateParams): Promise<SentMessageInfo> {
+  async sendEmail(params: EmailTemplateDTO): Promise<boolean> {
     try {
-      const response = await this.mailerService.sendMail({
-        to: params.to_email,
+      await this.mailerService.sendMail({
         from: process.env.SADMIN_EMAIL,
+        to: params.to_email,
         subject: params.subject,
-        text: params.text,
+        html: params.body,
       });
-      console.log('Email sent successfully:', response);
       return true;
     } catch (error) {
-      if (error) {
-        console.log('EMAILJS FAILED...', error);
-        return false;
-      }
-      console.log('ERROR', error);
+      console.error('Failed to send email:', error);
       return false;
     }
   }
 
-  async sendAllEmail(subject: string, content: string) {
+  async sendAllEmails(subject: string, content: string): Promise<void> {
     const users = await this.userService.findAll();
     users.forEach((user, index) => {
-      setTimeout(() => {
-        this.mailerService
-          .sendMail({
+      setTimeout(async () => {
+        try {
+          await this.mailerService.sendMail({
             to: user.email,
-            subject: subject,
+            subject,
             text: content,
             html: `<b>${content}</b>`,
-          })
-          .then(() => {
-            console.log(`Email sent to ${user.email}`);
-          })
-          .catch((error) => {
-            console.error(
-              `Failed to send email to ${user.email}: ${error.message}`,
-            );
           });
+          console.log(`Email sent to ${user.email}`);
+        } catch (error) {
+          console.error(`Failed to send email to ${user.email}:`, error);
+        }
       }, index * 2000);
     });
   }
 
-  async sendVerificationEmail(userId: number) {
-    const user = await this.userService.getById(userId);
-    await this.emailVerificationService.sendVerificationCode(userId);
+  // // Отправка письма с уникальной ссылкой верификации
+  // async sendVerificationEmail(userId: number): Promise<void> {
+  //   const user = await this.userService.getById(userId);
+  //   const token = uuidv4();
 
-    await this.mailerService.sendMail({
-      to: user.email,
-      subject: 'Email Verification Code',
-      text: `Your verification code is: ${this.emailVerificationService.generateVerificationCode()}`,
-    });
-  }
+  //   // Сохраняем токен в базе (срок действия, например, 24 часа)
+  //   await this.emailVerificationService.saveVerificationToken(userId, token);
+
+  //   const verificationUrl = `${process.env.FRONTEND_URL}/mail/verify-email?token=${token}`;
+
+  //   await this.mailerService.sendMail({
+  //     to: user.email,
+  //     subject: 'Email Verification',
+  //     html: `
+  //       <p>Hello ${user.name}, please verify your email by clicking on the link below:</p>
+  //       <a href="${verificationUrl}">Verify Email</a>
+  //       <p>This link will expire in 24 hours.</p>
+  //     `,
+  //   });
+  // }
+
+  // Проверка и активация пользователя по токену
+  // async verifyUserByToken(token: string): Promise<boolean> {
+  //   const verificationRecord =
+  //     await this.emailVerificationService.getVerificationByToken(token);
+
+  //   if (!verificationRecord || verificationRecord.expirationDate < new Date()) {
+  //     return false;
+  //   }
+
+  //   await this.userService.verifyUserEmail(verificationRecord.userId);
+  //   await this.emailVerificationService.removeToken(token);
+  //   return true;
+  // }
 }

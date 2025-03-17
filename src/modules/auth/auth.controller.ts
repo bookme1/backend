@@ -9,18 +9,22 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
+  Request as CommonRequest,
 } from '@nestjs/common';
+import { AuthGuard } from '../auth/strategies/accessToken.strategy';
+import { constants } from 'src/config/constants';
 import { AuthService } from './auth.service';
 import {
   EmailLoginDto,
   EmailSignupDto,
   ForgotPasswordDto,
   PasswordResetDto,
+  VerifyEmailDTO,
 } from 'src/modules/auth/auth.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role } from 'src/db/types';
 import { Request, Response } from 'express';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard as GoogleGuard } from '@nestjs/passport';
 import { GoogleAuthenticatedRequest } from 'src/common/types/AuthenticatedRequest';
 
 @ApiTags('auth')
@@ -45,13 +49,13 @@ export class AuthController {
 
   // Redirect to Google
   @Get('signin/google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleGuard('google'))
   async googleAuth() {
     // Empty method, redirect automatically
   }
 
   @Get('signin/google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleGuard('google'))
   async googleAuthRedirect(
     @Req() req: GoogleAuthenticatedRequest,
     @Res() res: Response,
@@ -85,6 +89,18 @@ export class AuthController {
   @Post('logout')
   logout(@Res() res: Response) {
     return this.authService.logout(res);
+  }
+
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth(constants.authPatternName)
+  @Post('verify-email')
+  verifyEmail(@CommonRequest() req: any) {
+    return this.authService.verifyEmail(req.user.userId);
+  }
+
+  @Post('prove-token')
+  proveEmailToken(@Body() verifyData: VerifyEmailDTO) {
+    return this.authService.proveToken(verifyData.token, verifyData.userId);
   }
 
   @Post('password-reset')

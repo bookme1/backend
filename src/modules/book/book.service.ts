@@ -704,11 +704,14 @@ export class BooksService {
         });
       }
 
-      if (params.minPrice !== undefined && params.maxPrice !== undefined) {
-        queryBuilder.andWhere('book.price BETWEEN :minPrice AND :maxPrice', {
-          minPrice: params.minPrice,
-          maxPrice: params.maxPrice,
-        });
+      if (params.minPrice != null && params.maxPrice != null) {
+        queryBuilder.andWhere(
+          'CAST(book.price AS FLOAT) BETWEEN :minPrice AND :maxPrice',
+          {
+            minPrice: params.minPrice,
+            maxPrice: params.maxPrice,
+          },
+        );
       }
 
       // Получаем общее количество отфильтрованных книг

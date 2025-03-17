@@ -7,10 +7,10 @@ import { AuthGuard } from './strategies/accessToken.strategy';
 import { RefreshTokenStrategy } from './strategies/refreshToken.strategy';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
-import { EmailVerificationModule } from '../email-verification/email-verification.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { EmailVerificationModule } from '../emailVerification/emailVerification.module';
 
 @Module({
   imports: [
@@ -18,8 +18,8 @@ import { GoogleStrategy } from './strategies/google.strategy';
     JwtModule.register({}),
     PassportModule.register({ defaultStrategy: 'google' }),
     UsersModule,
-    EmailVerificationModule,
     BooksModule,
+    EmailVerificationModule,
   ],
   controllers: [AuthController],
   providers: [

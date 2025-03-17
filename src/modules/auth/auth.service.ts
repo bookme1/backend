@@ -10,9 +10,11 @@ import { getConfig } from 'src/config';
 import { UserService } from '../user/user.service';
 import { Role } from 'src/db/types';
 import { MailService } from '../mail/mail.service';
-import { EmailTemplateParams } from '../mail/mail-interface';
 import { ForgotPasswordDto, PasswordResetDto } from './auth.dto';
 import { Request, Response } from 'express';
+import { EmailTemplateDTO } from '../mail/mail-interface';
+import { VerificationEmailTemplate } from './EmailAuthTemplate';
+import { EmailVerificationService } from '../emailVerification/emailVerification.service';
 
 const config = getConfig();
 
@@ -22,6 +24,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly verificationService: EmailVerificationService,
   ) {}
 
   public async login(email: string, password: string, response: Response) {
@@ -78,7 +81,6 @@ export class AuthService {
 
   async refreshTokens(response: Response, request: Request) {
     const refreshToken = request.cookies['refreshToken'];
-    if (!refreshToken) throw new UnauthorizedException('No refresh token');
 
     try {
       const payload = this.jwtService.verify(refreshToken, {
@@ -113,6 +115,31 @@ export class AuthService {
     response.status(200).json({ message: 'Logged out successfully' });
   }
 
+  async verifyEmail(userId: number) {
+    // Find user in collection and prove, that he is not authenticated
+    const user = await this.userService.getById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    if (user.verified) return { message: 'Already authenticated' };
+
+    // generate verification token
+    const token = await this.verificationService.generateCode(userId);
+    const activationUrl = `${process.env.CLIENT_URL}/verify/?user=${userId}&token=${token.token}`;
+    try {
+      await this.mailService.sendEmail({
+        to_email: user.email,
+        subject: 'Bookme - активація акаунту',
+        body: VerificationEmailTemplate.generate(user.username, activationUrl),
+      });
+      return { message: 'Email was sent successfully' };
+    } catch (error) {
+      return { message: 'Error by sending email', error };
+    }
+  }
+
+  async proveToken(token: string, userId: number) {
+    await this.verificationService.verifyCode(token, userId);
+  }
+
   async sendPasswordResetLink(dto: ForgotPasswordDto) {
     const user = await this.userService.getByEmail(dto.email);
     if (!user) throw new UnauthorizedException('User not found');
@@ -124,11 +151,10 @@ export class AuthService {
     });
 
     const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${token}`;
-    const mailData: EmailTemplateParams = {
-      to_name: user.username,
+    const mailData: EmailTemplateDTO = {
       to_email: dto.email,
       subject: 'Password Reset Request',
-      text: `Hello ${user.username},\n\nClick the link to reset your password:\n${link}\n\nIf you didn't request this, please ignore.`,
+      body: `Hello ${user.username},\n\nClick the link to reset your password:\n${link}\n\nIf you didn't request this, please ignore.`,
     };
 
     await this.mailService.sendEmail(mailData);
