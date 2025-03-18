@@ -73,8 +73,10 @@ export class AuthService {
 
     await this.userService.updateLoggedDate(user.id);
 
+    await this.verifyEmail(user.id); // Email with verification
+
     return {
-      message: 'Registered successfully',
+      message: 'Registered successfully. Email was sent',
       user: this.userService.removePasswordFromUser(user),
     };
   }

@@ -158,13 +158,13 @@ export class BooksService {
             });
             res.on('end', async () => {
               try {
-                console.log('Raw response body:', body); // Логируем тело ответа
+                // console.log('Raw response body:', body); // Логируем тело ответа
                 const jsonResult = await convert.xml2json(body, {
                   compact: true,
                   spaces: 2,
                 });
 
-                console.log('Parsed response:', jsonResult);
+                // console.log('Parsed response:', jsonResult);
 
                 if (!jsonResult || jsonResult.trim() === '') {
                   // Если ответ пустой, возвращаем пустой массив
@@ -553,6 +553,8 @@ export class BooksService {
               i,
             );
 
+            if (!newBookData) continue;
+
             // Проверяем, есть ли книга в базе
             const existingBook = await this.booksRepository.findOneBy({
               referenceNumber: newBookData.referenceNumber,
@@ -584,6 +586,7 @@ export class BooksService {
                 source: 'updateBooksFromArthouse',
                 message: `Created new book: ${newBook.title} (Ref: ${newBook.referenceNumber})`,
                 code: 2001,
+                context: dumpedBooks[i],
               });
             }
 
@@ -595,6 +598,7 @@ export class BooksService {
               code: 4001,
               context: JSON.stringify(dumpedBooks[i], null, 2),
             });
+            dumpedQuantity += 1; // Maybe count it as errored
           }
         }
       } while (dumpedQuantity < 240 && dumpedBooks.length !== 0);
@@ -1006,24 +1010,18 @@ export class BooksService {
     // collateralDetail => desc, url
     let desc = 'Без опису';
     let url = '';
+    console.warn('S RESOURCES: ', product);
     if (product?.CollateralDetail) {
       const textContents = toArray(product.CollateralDetail.TextContent);
       if (textContents.length > 0) {
         desc = readText(textContents[0]?.Text, 'Без опису');
       }
       // cover
-
       const sResources = toArray(product.CollateralDetail.SupportingResource);
       if (sResources.length > 0) {
-        for (const resource of sResources) {
-          const resourceVerArr = toArray(resource.ResourceVersion);
-          for (const version of resourceVerArr) {
-            if (version?.ResourceLink) {
-              url = readText(version.ResourceLink, '');
-              if (url) break; // First found URL
-            }
-          }
-          if (url) break;
+        const resourceVerArr = toArray(sResources[0]?.ResourceVersion);
+        if (resourceVerArr.length > 0) {
+          url = readText(resourceVerArr[0]?.ResourceLink, '');
         }
       }
     }

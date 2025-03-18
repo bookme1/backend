@@ -1,4 +1,22 @@
 import { LogsService } from 'src/modules/log/log.service';
+import { readText } from '../helper';
+
+interface IBook {
+  referenceNumber: string;
+  title: string;
+  author: string;
+  genre: string;
+  price: number;
+  pages: number;
+  lang: string;
+  desc: string;
+  pub: string;
+  pubDate: string;
+  url: string;
+  formatMobi: string;
+  formatPdf: string;
+  formatEpub: string;
+}
 
 export class BookExtractor {
   constructor(private logsService: LogsService) {}
@@ -10,6 +28,7 @@ export class BookExtractor {
       serviceBookObject,
       index,
     );
+
     if (!recordReference) return null;
 
     const descriptiveDetail = serviceBookObject?.DescriptiveDetail || {};
@@ -17,105 +36,106 @@ export class BookExtractor {
     const collateralDetail = serviceBookObject?.CollateralDetail || {};
     const productSupply = serviceBookObject?.ProductSupply || {};
 
-    const bookData = {
-      referenceNumber: recordReference,
-      title: await this.extractAndLog(
-        descriptiveDetail,
-        'TitleDetail',
-        this.extractTitle,
-        missingFields,
-      ),
-      authors: await this.extractAndLog(
-        descriptiveDetail,
-        'Contributor',
-        this.extractAuthors.bind(this),
-        missingFields,
-      ),
-      genres: await this.extractAndLog(
-        descriptiveDetail,
-        'Subject',
-        this.extractGenres.bind(this),
-        missingFields,
-      ),
-      price: await this.extractAndLog(
-        productSupply,
-        'SupplyDetail',
-        this.extractPrice,
-        missingFields,
-      ),
-      pageCount: await this.extractAndLog(
-        descriptiveDetail,
-        'Extent',
-        this.extractPageCount,
-        missingFields,
-      ),
-      language: await this.extractAndLog(
-        descriptiveDetail,
-        'Language',
-        this.extractLanguage,
-        missingFields,
-      ),
-      description: await this.extractAndLog(
-        collateralDetail,
-        'TextContent',
-        this.extractDescription,
-        missingFields,
-      ),
-      publisher: await this.extractAndLog(
-        publishingDetail,
-        'Publisher',
-        this.extractPublisher,
-        missingFields,
-      ),
-      publicationDate: await this.extractAndLog(
-        publishingDetail,
-        'PublishingDate',
-        this.extractPublicationDate,
-        missingFields,
-      ),
-      // edition: await this.extractAndLog(
-      //   descriptiveDetail,
-      //   'EditionNumber',
-      //   this.extractEdition,
-      //   missingFields,
-      // ),
-      format: await this.extractAndLog(
-        descriptiveDetail,
-        'ProductForm',
-        this.extractFormat,
-        missingFields,
-      ),
-      // isbn: await this.extractAndLog(
-      //   descriptiveDetail,
-      //   'ProductIdentifier',
-      //   this.extractISBN,
-      //   missingFields,
-      // ),
-      // dimensions: await this.extractAndLog(
-      //   descriptiveDetail,
-      //   'Measure',
-      //   this.extractDimensions,
-      //   missingFields,
-      // ),
-      // availability: await this.extractAndLog(
-      //   productSupply,
-      //   'MarketPublishingStatus',
-      //   this.extractAvailability,
-      //   missingFields,
-      // ),
-    };
+    const isAvailable =
+      productSupply?.SupplyDetail?.ProductAvailability?._text === '20';
 
-    // Логируем все отсутствующие поля
-    if (missingFields.length > 0) {
+    if (!isAvailable) {
       this.logsService.save({
         source: 'updateBooksFromArthouse',
-        message: `Missing fields for book index ${index}: ${missingFields.join(', ')}`,
+        message: `Book ${recordReference} is not available for purchase`,
         context: JSON.stringify(serviceBookObject, null, 2),
-        code: 3009,
+        code: 3010,
       });
+      return null;
     }
 
-    return bookData;
+    const formats = this.extractFormats(serviceBookObject?.ProductionDetail);
+
+    try {
+      const bookData: IBook = {
+        referenceNumber: recordReference,
+        title: await this.extractAndLog(
+          descriptiveDetail,
+          'TitleDetail',
+          this.extractTitle,
+          missingFields,
+        ),
+        author: await this.extractAndLog(
+          descriptiveDetail,
+          'Contributor',
+          this.extractAuthors.bind(this),
+          missingFields,
+          true,
+        ), // ОБЯЗАТЕЛЬНО
+        genre: await this.extractAndLog(
+          descriptiveDetail,
+          'Subject',
+          this.extractGenres.bind(this),
+          missingFields,
+          true,
+        ), // ОБЯЗАТЕЛЬНО
+        price: await this.extractAndLog(
+          productSupply,
+          'SupplyDetail',
+          this.extractPrice,
+          missingFields,
+        ),
+        pages: await this.extractAndLog(
+          descriptiveDetail,
+          'Extent',
+          this.extractPageCount,
+          missingFields,
+          true,
+        ), // ОБЯЗАТЕЛЬНО
+        lang: await this.extractAndLog(
+          descriptiveDetail,
+          'Language',
+          this.extractLanguage,
+          missingFields,
+        ),
+        desc: await this.extractAndLog(
+          collateralDetail,
+          'TextContent',
+          this.extractDescription,
+          missingFields,
+          true,
+        ), // ОБЯЗАТЕЛЬНО
+        pub: await this.extractAndLog(
+          publishingDetail,
+          'Publisher',
+          this.extractPublisher,
+          missingFields,
+          true,
+        ), // ОБЯЗАТЕЛЬНО
+        pubDate: await this.extractAndLog(
+          publishingDetail,
+          'PublishingDate',
+          this.extractPublicationDate,
+          missingFields,
+        ),
+        // format: await this.extractAndLog(
+        //   descriptiveDetail,
+        //   'ProductForm',
+        //   this.extractFormat,
+        //   missingFields,
+        // ),
+        url: this.extractCoverUrl(collateralDetail),
+        formatMobi: formats.formatMobi,
+        formatPdf: formats.formatPdf,
+        formatEpub: formats.formatEpub,
+      };
+
+      return bookData;
+    } catch (error) {
+      this.logsService.save({
+        source: 'updateBooksFromArthouse',
+        message: `Book ${recordReference} is missing required fields: ${missingFields.join(', ')}`,
+        context: JSON.stringify(serviceBookObject, null, 2),
+        code: 3011,
+      });
+
+      return null;
+    }
   }
 
   private async extractAndLog<T>(
@@ -123,12 +143,16 @@ export class BookExtractor {
     field: string,
     extractor: (data: any) => T | Promise<T>,
     missingFields: string[],
+    required: boolean = false,
   ): Promise<T> {
     const data = source?.[field];
 
     if (!data) {
       missingFields.push(field);
-      return await extractor(null); // Передаем null, чтобы обработать заглушки внутри extractor
+      if (required) {
+        throw new Error(`Missing required field: ${field}`);
+      }
+      return await extractor(null);
     }
 
     return await extractor(data);
@@ -138,44 +162,64 @@ export class BookExtractor {
     serviceBookObject: any,
     index: number,
   ): string | null {
-    const recordReference = serviceBookObject?.RecordReference?._text || '';
-    if (!recordReference) {
+    try {
+      if (!serviceBookObject || !serviceBookObject.RecordReference) {
+        this.logsService.save({
+          source: 'updateBooksFromArthouse',
+          message: `Missing RecordReference for book index ${index}`,
+          context: JSON.stringify(serviceBookObject, null, 2),
+          code: 1002,
+        });
+        return null;
+      }
+
+      const recordReference = serviceBookObject.RecordReference._text?.trim();
+
+      if (!recordReference) {
+        this.logsService.save({
+          source: 'updateBooksFromArthouse',
+          message: `Empty RecordReference for book index ${index}`,
+          context: JSON.stringify(serviceBookObject, null, 2),
+          code: 1003,
+        });
+        return null;
+      }
+
+      return recordReference;
+    } catch (error) {
       this.logsService.save({
         source: 'updateBooksFromArthouse',
-        message: `Missing RecordReference for book index ${index}`,
+        message: `Error extracting RecordReference for book index ${index}: ${error.message}`,
         context: JSON.stringify(serviceBookObject, null, 2),
-        code: 1002,
+        code: 1004,
       });
       return null;
     }
-    return recordReference;
   }
 
-  private async extractAuthors(contributors: any): Promise<string[]> {
-    if (!contributors) return [];
+  private async extractAuthors(contributors: any): Promise<string> {
+    if (!contributors) return 'Без автора';
 
     if (!Array.isArray(contributors)) contributors = [contributors];
 
-    // Обрабатываем случаи, когда вообще нет авторов
-    if (contributors.some((c) => c.NoContributor)) return ['Автор відсутній'];
+    // Фильтруем только авторов (A01)
+    const authors = contributors
+      .filter((c) => c?.ContributorRole?._text === 'A01')
+      .map((c) => c.PersonName?._text || 'Невідомий автор');
 
-    return contributors
-      .filter((c) => {
-        const role = c?.ContributorRole?._text;
-        return role && (role.includes('A01') || role.includes('B06')); // включаем и редакторов
-      })
-      .map(
-        (c) =>
-          c.PersonName?._text || c.UnnamedPersons?._text || 'Народна творчість',
-      );
+    return authors.length > 0 ? authors.join(', ') : 'Без автора';
   }
 
-  private async extractGenres(subjects: any): Promise<string[]> {
-    if (!subjects) return [];
+  private async extractGenres(subjects: any): Promise<string> {
+    if (!subjects) return 'Жанр невідомий';
 
     if (!Array.isArray(subjects)) subjects = [subjects];
 
-    return subjects.map((s) => s.SubjectHeadingText?._text || 'Жанр невідомий');
+    const genres = subjects
+      .map((s) => s.SubjectHeadingText?._text)
+      .filter((g) => g);
+
+    return genres.length > 0 ? genres.join(', ') : 'Жанр невідомий';
   }
 
   private extractTitle(titleDetails: any): string {
@@ -200,32 +244,87 @@ export class BookExtractor {
     return Number(supplyDetail?.Price?.PriceAmount?._text) || 0;
   }
 
+  private extractFormats(productionDetail: any): {
+    formatMobi: string;
+    formatPdf: string;
+    formatEpub: string;
+  } {
+    if (!productionDetail?.ProductionManifest?.BodyManifest?.BodyResource) {
+      return { formatMobi: '', formatPdf: '', formatEpub: '' };
+    }
+
+    const resources = Array.isArray(
+      productionDetail.ProductionManifest.BodyManifest.BodyResource,
+    )
+      ? productionDetail.ProductionManifest.BodyManifest.BodyResource
+      : [productionDetail.ProductionManifest.BodyManifest.BodyResource];
+
+    let formatMobi = '';
+    let formatPdf = '';
+    let formatEpub = '';
+
+    for (const resource of resources) {
+      const fileLink = resource?.ResourceFileLink?._text;
+      if (!fileLink) continue;
+
+      if (fileLink.endsWith('.mobi')) {
+        formatMobi = fileLink;
+      } else if (fileLink.endsWith('.pdf')) {
+        formatPdf = fileLink;
+      } else if (fileLink.endsWith('.epub')) {
+        formatEpub = fileLink;
+      }
+    }
+
+    return { formatMobi, formatPdf, formatEpub };
+  }
+
   private extractPageCount(extents: any): number {
     if (!extents) return 0;
 
     if (!Array.isArray(extents)) extents = [extents];
 
-    return (
-      Number(
-        extents.find((e) => e.ExtentType?._text === '00')?.ExtentValue?._text,
-      ) || 0
-    );
+    const pages = extents.find((e) => e.ExtentType?._text === '00')?.ExtentValue
+      ?._text;
+
+    return pages ? Number(pages) : 0;
   }
 
   private extractLanguage(languages: any): string {
-    return languages?.[0]?.LanguageCode?._text || 'Немає інформації';
+    if (!languages) return 'Немає інформації';
+
+    if (!Array.isArray(languages)) languages = [languages];
+
+    const mainLanguage = languages.find(
+      (lang) => lang.LanguageRole?._text === '01',
+    );
+
+    return mainLanguage?.LanguageCode?._text?.trim() || 'Немає інформації';
   }
 
   private extractDescription(textContents: any): string {
-    return textContents?.[0]?.Text?._cdata || 'Без опису';
+    if (!textContents) return 'Без опису';
+
+    if (!Array.isArray(textContents)) textContents = [textContents];
+
+    for (const textContent of textContents) {
+      const text = textContent?.Text?._cdata || textContent?.Text?._text;
+      if (text) return text;
+    }
+
+    return 'Без опису';
   }
 
-  private extractPublisher(publisherData: any): string {
-    return publisherData?.PublisherName?._text || 'Автор невідомий';
+  private extractPublisher(publishingDetail: any): string {
+    if (!publishingDetail) {
+      return 'Видавництво невідоме';
+    }
+
+    return readText(publishingDetail?.PublisherName);
   }
 
   private extractPublicationDate(publishingDate: any): string {
-    return publishingDate?.Date?._text || 'Невідомо';
+    return publishingDate?.Date?._text || '';
   }
 
   private extractEdition(edition: any): string {
@@ -234,6 +333,27 @@ export class BookExtractor {
 
   private extractFormat(format: any): string {
     return format?._text || 'Невідомо';
+  }
+
+  private extractCoverUrl(collateralDetail: any): string {
+    if (!collateralDetail?.SupportingResource) return '';
+
+    const resources = Array.isArray(collateralDetail.SupportingResource)
+      ? collateralDetail.SupportingResource
+      : [collateralDetail.SupportingResource];
+
+    for (const resource of resources) {
+      const versions = Array.isArray(resource?.ResourceVersion)
+        ? resource.ResourceVersion
+        : [resource?.ResourceVersion];
+
+      for (const version of versions) {
+        const url = version?.ResourceLink?._text;
+        if (url) return url;
+      }
+    }
+
+    return '';
   }
 
   private extractISBN(identifiers: any): string {
