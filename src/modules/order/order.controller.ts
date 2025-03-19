@@ -9,10 +9,9 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import { CreateOrderDTO } from './order.dto';
-import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { constants } from 'src/config/constants';
 import { BooksService } from '../book/book.service';
-import { AuthGuard } from 'src/common/guards/cookie.guard';
+import { AuthGuard } from '../auth/strategies/accessToken.strategy';
 
 @ApiTags('order')
 @Controller('api/order')
@@ -23,7 +22,7 @@ export class OrderController {
   ) {}
 
   //ONLY ADMINS
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Get('/getAll')
   public getAllOrders() {
@@ -31,7 +30,7 @@ export class OrderController {
   }
 
   // ONLY REGISTERED USERS
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Post('/')
   public createOrder(@Body() order: CreateOrderDTO, @Request() req: any) {

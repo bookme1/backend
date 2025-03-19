@@ -45,6 +45,7 @@ export class EmailVerificationService {
     });
 
     await this.repo.save(verificationToken);
+
     return verificationToken;
   }
 

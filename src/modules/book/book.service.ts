@@ -64,6 +64,7 @@ export class BooksService {
         'formatEpub',
         'formatMobi',
         'formatPdf',
+        'referenceNumber',
       ],
     });
     if (!book) {
