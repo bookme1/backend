@@ -28,7 +28,7 @@ export class OrderService {
 
   async createOrder(
     createOrderDTO: CreateOrderDTO,
-    userId: string,
+    userId: number,
   ): Promise<any> {
     let ifSomethingEmpty = false;
 

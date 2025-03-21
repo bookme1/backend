@@ -34,7 +34,7 @@ export class OrderController {
   @ApiBearerAuth(constants.authPatternName)
   @Post('/')
   public createOrder(@Body() order: CreateOrderDTO, @Request() req: any) {
-    const { id: userId } = req.user;
+    const { userId } = req.user;
     return this.orderService.createOrder(order, userId);
   }
 
