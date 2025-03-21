@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Order } from 'src/db/Order';
 import { CreateOrderDTO } from './order.dto';
 import { User } from 'src/db/User';
@@ -108,7 +108,10 @@ export class OrderService {
 
   async findAllSucceed(userId: number): Promise<Order[]> {
     return await this.repository.find({
-      where: { user: { id: userId }, status: Status.Succeed },
+      where: {
+        user: { id: userId },
+        status: In([Status.Succeed, Status.Payed]),
+      },
     });
   }
 
