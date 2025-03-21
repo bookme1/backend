@@ -24,7 +24,7 @@ export class FilterController {
   @Get('')
   @UseInterceptors(CacheInterceptor)
   public async getFilters() {
-    const cachedGenres = await this.redisService.get('genres');
+    const cachedGenres = await this.redisService.get('agenres');
 
     //If we have cached genres -> return it
     if (cachedGenres != undefined) {
@@ -34,7 +34,7 @@ export class FilterController {
     //If we don't have cached data -> compute it and set to cache store
     const genres = await this.filterService.getGenres();
     await this.redisService.set(
-      'allGenres',
+      'genres',
       genres,
       1000 * 60 * 60 * 24 * 7, // 1 week
     ); // genres for catalog

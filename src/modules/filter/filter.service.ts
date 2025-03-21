@@ -3,15 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Filter } from 'src/db/Filter';
 import { Book } from 'src/db/Book';
-
-// interface GenreBook {
-//   genre: string;
-// }
-
-// interface GenreNode {
-//   count: number;
-//   subgenres: { [key: string]: GenreNode };
-// }
+import { normalizeGenres, reverseGenreMap } from './utils';
 
 @Injectable()
 export class FilterService {
@@ -31,11 +23,11 @@ export class FilterService {
       TRIM(BOTH FROM substring(book.genre from '[^/]+ / ([^/]+)')) AS sub_genre,
       COUNT(book.id) as count
     `,
-      ) // Получаем главный жанр и поджанр
-      .groupBy('main_genre, sub_genre') // Группируем по главному жанру и поджанру
+      ) // Get main genre and subgenre
+      .groupBy('main_genre, sub_genre') // Group by main and subgenre
       .where(
         "book.genre IS NOT NULL AND book.genre != '' AND book.genre NOT LIKE '%�%'",
-      ) // Фильтруем некорректные жанры
+      ) // Filter incorrect genres
       .getRawMany();
 
     return this.buildGenreTree(rawGenres);
@@ -57,10 +49,10 @@ export class FilterService {
         };
       }
 
-      // Увеличиваем количество книг для главного жанра
+      // Reduce book quantity for main genre
       genreTree[main_genre].count += Number(count);
 
-      // Добавляем поджанр, если он существует
+      // Add subgenre if it exists
       if (sub_genre && sub_genre !== main_genre) {
         genreTree[main_genre].children.push({
           genre: sub_genre,
@@ -70,20 +62,26 @@ export class FilterService {
     });
 
     // Преобразуем объект в массив для возвращения
-    return Object.values(genreTree);
+    return normalizeGenres(Object.values(genreTree));
   }
 
-  async getFilters(q: string) {
+  async getFilters(q: string, filters?: { genre?: string }) {
     const queryBuilder = this.booksRepository.createQueryBuilder('book');
 
-    // Фильтруем книги, если q не пустой
     if (q && q.trim() !== '') {
       queryBuilder.where('LOWER(book.title) LIKE LOWER(:q)', {
-        q: `${q}%`, // Ищем книги, где title начинается с q
+        q: `${q}%`,
       });
     }
 
-    // Выполняем выборку нужных данных
+    if (filters?.genre) {
+      const originalGenres =
+        reverseGenreMap[filters.genre] || new Set([filters.genre]);
+      queryBuilder.andWhere('book.genre IN (:...genres)', {
+        genres: Array.from(originalGenres),
+      });
+    }
+
     const books = await queryBuilder.getMany();
 
     const authors = new Set<string>();
@@ -101,7 +99,16 @@ export class FilterService {
       });
 
       publishers.add(book.pub);
-      genres.add(book.genre);
+
+      // Reversed genre mapping
+      if (reverseGenreMap[book.genre]) {
+        reverseGenreMap[book.genre].forEach((originalGenre) =>
+          genres.add(originalGenre),
+        );
+      } else {
+        genres.add(book.genre);
+      }
+
       languages.add(book.lang);
 
       const price = book.price;
