@@ -19,7 +19,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: '*', // Frontend domain
+    origin: process.env.CLIENT_URL, // Frontend domain
     credentials: true, // Allow cookies
   });
   const swaggerConfig = new DocumentBuilder()
