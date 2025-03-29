@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -359,6 +360,11 @@ export class BooksService {
       return textResponse;
     } catch (error) {
       console.error('Ошибка при отправке запроса1:', error.message);
+
+      throw new InternalServerErrorException({
+        message: 'Watermarking was not successful',
+        cause: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
 
@@ -507,6 +513,11 @@ export class BooksService {
       return 'OK';
     } catch (error) {
       console.error('Ошибка при отправке запроса3:', error.message);
+
+      throw new InternalServerErrorException({
+        message: 'Delivery was not successfull',
+        cause: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
 
