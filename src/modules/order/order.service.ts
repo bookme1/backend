@@ -1,8 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order } from 'src/db/Order';
-import { CreateOrderDTO } from './order.dto';
 import { User } from 'src/db/User';
 import { OrderBook } from 'src/db/OrderBook';
 import { Book } from 'src/db/Book';
@@ -27,22 +30,16 @@ export class OrderService {
   }
 
   async createOrder(
-    createOrderDTO: CreateOrderDTO,
+    bookIds: string[],
+    orderId: string,
     userId: number,
-  ): Promise<any> {
-    let ifSomethingEmpty = false;
-
-    if (
-      !createOrderDTO.orderBooks ||
-      !createOrderDTO.order_id ||
-      !createOrderDTO.amount
-    ) {
-      throw new BadRequestException('Not all parameters in order');
+  ): Promise<Order> {
+    if (!bookIds.length) {
+      throw new BadRequestException('No books to create an order');
     }
 
     const user = await this.userRepository.findOne({
-      where: { id: Number(userId) },
-      relations: ['orders'], // Ensure user orders are loaded
+      where: { id: userId },
     });
 
     if (!user) {
@@ -50,48 +47,41 @@ export class OrderService {
     }
 
     const order = new Order();
-    order.order_id = createOrderDTO.order_id;
+    order.order_id = orderId;
     order.status = Status.Loading;
-    order.amount = createOrderDTO.amount;
     order.user = user;
     order.orderBooks = [];
 
-    for (const book of createOrderDTO.orderBooks) {
-      if (
-        book.ordered_formats == null ||
-        book.reference_number == null ||
-        book.transaction_id == null
-      ) {
-        ifSomethingEmpty = true;
-      }
-      const orderBook = new OrderBook();
-      orderBook.orderedFormats = book.ordered_formats;
-      orderBook.book = await this.booksRepository.findOne({
-        where: { referenceNumber: book.reference_number },
+    let amount = 0;
+
+    for (const bookId of bookIds) {
+      const book = await this.booksRepository.findOne({
+        where: { id: bookId },
       });
-      orderBook.transId = book.transaction_id;
-      orderBook.order = order; // Make relations with order
-      order.orderBooks.push(orderBook); // Add orderBook to the array
+
+      if (!book) {
+        throw new ConflictException(`Book not found by id: ${bookId}`);
+      }
+
+      const orderedFormats: string[] = [];
+      if (book.formatEpub) orderedFormats.push('epub');
+      if (book.formatMobi) orderedFormats.push('mobi');
+      if (book.formatPdf) orderedFormats.push('pdf');
+
+      const orderBook = new OrderBook();
+      orderBook.book = book;
+      orderBook.orderedFormats = orderedFormats.join(',');
+      orderBook.order = order;
+      orderBook.status = Status.Created;
+
+      order.orderBooks.push(orderBook);
+      amount += book.price;
     }
 
-    if (ifSomethingEmpty) order.status = Status.Error;
-
+    order.amount = amount;
     const savedOrder = await this.repository.save(order);
 
-    // Returning a plain object to avoid circular references
-    return {
-      order_id: savedOrder.order_id,
-      status: savedOrder.status,
-      amount: savedOrder.amount,
-      user: savedOrder.user.id,
-      orderBooks: savedOrder.orderBooks.map((orderBook) => ({
-        orderedFormats: orderBook.orderedFormats,
-        transId: orderBook.transId,
-        book: {
-          referenceNumber: orderBook.book.referenceNumber,
-        },
-      })),
-    };
+    return savedOrder;
   }
 
   async findAllLoading(userId: number): Promise<Order[]> {

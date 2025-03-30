@@ -28,8 +28,8 @@ export class OrderBook {
   @Column()
   orderedFormats: string;
 
-  @Column()
-  transId: string;
+  @Column({ nullable: true })
+  transId!: string | null;
 
   @Column({ default: null })
   @IsString()

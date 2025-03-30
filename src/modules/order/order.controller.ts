@@ -5,6 +5,8 @@ import {
   Post,
   UseGuards,
   Request,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrderService } from './order.service';
@@ -18,6 +20,7 @@ import { AuthGuard } from '../auth/strategies/accessToken.strategy';
 export class OrderController {
   constructor(
     private readonly orderService: OrderService,
+    @Inject(forwardRef(() => BooksService))
     private readonly bookService: BooksService,
   ) {}
 
@@ -33,9 +36,14 @@ export class OrderController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth(constants.authPatternName)
   @Post('/')
-  public createOrder(@Body() order: CreateOrderDTO, @Request() req: any) {
+  public async createOrder(@Body() dto: CreateOrderDTO, @Request() req: any) {
     const { userId } = req.user;
-    return this.orderService.createOrder(order, userId);
+    const order = await this.orderService.createOrder(
+      dto.books,
+      dto.order_id,
+      userId,
+    );
+    return await this.bookService.cartWatermarking(order.order_id);
   }
 
   // ONLY REGISTERED USERS

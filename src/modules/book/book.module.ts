@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BooksService } from './book.service';
 import { BooksController } from './book.controller';
@@ -11,12 +11,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { LogsModule } from '../log/log.module';
 import { Log } from 'src/db/Log';
 import { OnixService } from '../onix/onix.service';
+import { OrderModule } from '../order/order.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Book, Order, User, OrderBook, Log]),
+    TypeOrmModule.forFeature([Book, User, OrderBook, Log, Order]),
     LogsModule,
     HttpModule,
+    forwardRef(() => OrderModule),
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET,
       signOptions: { expiresIn: '15m' },
@@ -24,6 +26,6 @@ import { OnixService } from '../onix/onix.service';
   ],
   providers: [BooksService, OnixService],
   controllers: [BooksController],
-  exports: [TypeOrmModule],
+  exports: [BooksService, TypeOrmModule],
 })
 export class BooksModule {}

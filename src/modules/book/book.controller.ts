@@ -235,11 +235,9 @@ export class BooksController {
   }
 
   @Post('/deliver')
-  public async makeDeliver(@Body() transactionId: deliverDTO) {
+  public async makeDeliver(@Body() deliverDTO: deliverDTO) {
     try {
-      const response = await this.bookService.deliver(
-        transactionId.transactionId,
-      );
+      const response = await this.bookService.deliver(deliverDTO.orderId);
       return response;
     } catch (error) {
       throw error;
@@ -305,10 +303,8 @@ export class BooksController {
   public async makeCartCheckout(@Request() req: any) {
     try {
       const response = await this.bookService.checkout(req.user.userId);
-      console.log('Response:', response);
       return response;
     } catch (error) {
-      console.error('Error:', error);
       throw error;
     }
   }

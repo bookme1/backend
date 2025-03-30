@@ -9,11 +9,13 @@ import { BooksModule } from '../book/book.module';
 import { HttpModule } from '@nestjs/axios';
 import { Log } from 'src/db/Log';
 import { LogsModule } from '../log/log.module';
+import { OrderModule } from '../order/order.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Bookset, Book, Log]),
     BooksModule,
+    OrderModule,
     HttpModule,
     LogsModule,
   ],

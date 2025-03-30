@@ -1,5 +1,8 @@
 import {
   BadRequestException,
+  ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -21,11 +24,14 @@ import { OrderBook } from 'src/db/OrderBook';
 import { readText, toArray } from './helper';
 import { LogsService } from '../log/log.service';
 import { BookExtractor } from './lib/onixExtractor';
+import { OrderService } from '../order/order.service';
 
 @Injectable()
 export class BooksService {
   constructor(
     private logsService: LogsService,
+    @Inject(forwardRef(() => OrderService))
+    private readonly orderService: OrderService,
     @InjectRepository(Book)
     private booksRepository: Repository<Book>,
     private httpService: HttpService,
@@ -372,48 +378,42 @@ export class BooksService {
     if (!order_id) {
       throw new BadRequestException('Order id is not provided');
     }
-    console.error('1');
+
     const order = await this.orderRepository.findOne({
       where: { order_id },
-      relations: ['orderBooks', 'orderBooks.book'], // Загружаем книги для orderBooks
+      relations: ['orderBooks', 'orderBooks.book', 'user'], // Load relations
     });
-    console.error('2');
+
     if (!order) {
+      await this.logsService.save({
+        source: 'Error by cart watermarking',
+        message: 'Order not found by the id: ' + order_id,
+        code: 9002,
+      });
       throw new BadRequestException('Order not found by that id');
     }
-    console.error('3');
+
     const fetchModule = await import('node-fetch');
     const fetch = fetchModule.default;
 
     const updatedOrder = order;
-    console.error('4');
-
-    // Функция задержки
-    const delay = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
 
     const transactionIds: string[] = [];
 
-    // Используем for...of вместо map для последовательной обработки с задержкой
     for (const [index, orderBook] of order.orderBooks.entries()) {
       const now = new Date();
       const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
-      // Генерация HMAC для подписи
+      // HMAC generation for signature
       const secret = '1b41d378b24738917d314dff5c816b61';
       const hmac = createHmac('sha1', unixTimestamp);
       const hmacDigest = hmac.update(secret).digest('base64');
       const sig = encodeURIComponent(hmacDigest);
 
-      const bookFormats: string[] = [];
-      if (orderBook.book.formatEpub) bookFormats.push('epub');
-      if (orderBook.book.formatMobi) bookFormats.push('mobi');
-      if (orderBook.book.formatPdf) bookFormats.push('pdf');
-
       const data = {
         record_reference: orderBook.book.referenceNumber,
-        formats: bookFormats.join(','),
-        visible_watermark: `Цю книгу купив користувач: user@domain.com (Замовлення № ${order_id}, b3258, ${now.toISOString()})`,
+        formats: orderBook.orderedFormats,
+        visible_watermark: `Цю книгу купив користувач: ${order.user.username} (Замовлення № ${order_id}, ${now.toISOString()})`,
         stamp: unixTimestamp,
         sig: sig,
         token: 'e_wa_97fd26f52e0505e68ec782ea_test',
@@ -435,95 +435,139 @@ export class BooksService {
 
         const transactionId = await response.text();
 
-        // Обновляем транзакционный ID в `OrderBook`
-        orderBook.transId = transactionId;
-        orderBook.orderedFormats = bookFormats.join(',');
-        updatedOrder.orderBooks[index] = orderBook;
+        if (!transactionId) throw new ConflictException();
 
-        console.error('book succeed watermarked');
+        // Set transaction id in OrderBook
+        orderBook.transId = transactionId;
+        updatedOrder.orderBooks[index] = orderBook;
         transactionIds.push(transactionId);
       } catch (error) {
-        console.error('Ошибка при отправке запроса:', error.message);
+        await this.logsService.save({
+          source: 'Error by watermarking the ordered book: ' + orderBook.id,
+          message: error,
+          context: order,
+          code: 9003,
+        });
         throw error;
       }
-
-      // Задержка 5 секунд перед следующим запросом
-      await delay(60500);
     }
 
-    console.error('7');
+    // Update transaction id for each book in DB
     updatedOrder.orderBooks.map(async (orderBook) => {
       await this.orderBookRepository.update(orderBook.id, orderBook);
     });
 
-    console.error('8');
-    return transactionIds; // Возвращаем массив transaction_id для всех книг
+    return transactionIds; // Return transaction_id[] for delivery
   }
 
-  async deliver(transactionId: string): Promise<string> {
+  async deliver(orderId: string): Promise<string> {
     const order = await this.orderRepository.findOne({
-      where: { order_id: transactionId },
+      where: { order_id: orderId },
+      relations: ['orderBooks'],
     });
-    console.error(order);
-    if (order.status != Status.Payed) {
+
+    if (!order) {
+      await this.logsService.save({
+        source: 'Delivery error',
+        message: 'Order not found: ' + orderId,
+        context: orderId,
+        code: 9004,
+      });
+      throw new BadRequestException('Order not found');
+    }
+
+    if (order.status !== Status.Payed) {
+      await this.logsService.save({
+        source: 'Delivery error',
+        message: 'Order not paid',
+        context: order,
+        code: 9004,
+      });
       return "You didn't pay!";
     }
 
-    // Получаем текущее время
-    const now = new Date();
+    const fetchModule = await import('node-fetch');
+    const fetch = fetchModule.default;
 
-    // Получаем UNIX timestamp в секундах
-    const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
+    const deliveredTransactionIds: string[] = [];
 
-    // Генерируем HMAC для создания подписи (sig)
-    const secret = '1b41d378b24738917d314dff5c816b61'; // Замените на ваш приватный ключ
-    const hmac = createHmac('sha1', unixTimestamp);
-    const hmacDigest = hmac.update(secret).digest('base64');
-    const sig = encodeURIComponent(hmacDigest);
-    const data = {
-      trans_id: order.orderBooks[0].transId, // Временно только для 1 книги
-      stamp: unixTimestamp, // Временная метка в украинском времени
-      sig: sig, // Динамический HMAC в виде подписи
-      token: 'e_wa_97fd26f52e0505e68ec782ea_test',
-    };
-
-    try {
-      const fetchModule = await import('node-fetch');
-      const fetch = fetchModule.default;
-
-      const url = 'https://platform.elibri.com.ua/watermarking/deliver';
-      const response = await fetch(url, {
-        method: 'POST',
-        body: new URLSearchParams(data as Record<string, string>),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+    for (const orderBook of order.orderBooks) {
+      if (!orderBook.transId) {
+        await this.logsService.save({
+          source: 'Delivery error',
+          message: `No transactionId in orderBook id: ${orderBook.id}`,
+          context: orderBook,
+          code: 9006,
+        });
+        continue; // Skip without transaction id
       }
 
-      // Получаем текстовое представление ответа
-      await response.text();
-      console.log('Making status delievered!');
-      order.status = Status.Delievered;
-      await this.orderRepository.save(order);
+      const now = new Date();
+      const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
-      return 'OK';
-    } catch (error) {
-      console.error('Ошибка при отправке запроса3:', error.message);
+      const secret = '1b41d378b24738917d314dff5c816b61';
+      const hmac = createHmac('sha1', unixTimestamp);
+      const hmacDigest = hmac.update(secret).digest('base64');
+      const sig = encodeURIComponent(hmacDigest);
 
-      throw new InternalServerErrorException({
-        message: 'Delivery was not successfull',
-        cause: error instanceof Error ? error.message : 'Unknown error',
-      });
+      const data = {
+        trans_id: orderBook.transId,
+        stamp: unixTimestamp,
+        sig: sig,
+        token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+      };
+
+      try {
+        const response = await fetch(
+          'https://platform.elibri.com.ua/watermarking/deliver',
+          {
+            method: 'POST',
+            body: new URLSearchParams(data as Record<string, string>),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          },
+        );
+
+        if (!response.ok) {
+          const body = await response.text();
+          await this.logsService.save({
+            source: 'Delivery error',
+            message: `Elibri could not deliver book: ${orderBook.id}`,
+            context: response,
+            code: 9007,
+          });
+          throw new Error(`HTTP ${response.status} - ${body}`);
+        }
+
+        await response.text();
+        deliveredTransactionIds.push(orderBook.transId);
+      } catch (error) {
+        await this.logsService.save({
+          source: 'Delivery error',
+          message: `Failed to deliver book ID: ${orderBook.id}, transId: ${orderBook.transId}`,
+          context: error,
+          code: 9005,
+        });
+
+        // If at least 1 book was not delivered — do not mark as Delivered
+        throw new InternalServerErrorException({
+          message: 'Delivery failed for some books',
+          cause: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     }
+
+    // At that point, all books are successful delivered
+    order.status = Status.Delievered;
+    await this.orderRepository.save(order);
+
+    return 'OK';
   }
 
   async updateBooksFromArthouse() {
     try {
-      this.logsService.save({
+      await this.logsService.save({
         source: 'updateBooksFromArthouse',
         message: 'Starting book update process from Arthouse...',
         code: 1000,
@@ -811,66 +855,45 @@ export class BooksService {
     return this.generateSignature(params, order_id);
   }
 
-  async checkout(user_id: number): Promise<{
+  async checkout(userId: number): Promise<{
     data: string;
     signature: string;
     order_id: string;
   }> {
-    const order_id = randomUUID();
-    const description =
-      'Оплата за книги в магазині Bookme, ФОП Науменко Михайло Вікторович. ';
+    const orderId = randomUUID();
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['cart'],
+    });
+
+    if (!user || !user.cart.length) throw new Error('User or cart not found');
+
+    const bookIds = user.cart.map((b) => b.id);
+
+    const order = await this.orderService.createOrder(bookIds, orderId, userId);
+
+    const description = `Оплата за книги в магазині Bookme, ФОП Науменко Михайло Вікторович. Ідентифікатор замовлення: ${orderId}`;
     const params = {
       public_key: 'sandbox_i70460379180',
       version: '3',
       action: 'pay',
-      amount: 0,
+      amount: order.amount,
       currency: 'UAH',
-      description: description + 'Ідентифікатор замовлення: ' + order_id,
-      order_id: order_id,
+      description,
+      order_id: orderId,
       sandbox: 1,
     };
 
-    // save new order
-    const user = await this.userRepository.findOne({
-      where: { id: user_id },
-      relations: ['cart'], // Загрузка связанных книг в корзине пользователя
-    });
-
-    if (!user || !user.cart.length) {
-      throw new Error('User or cart not found');
-    }
-
-    // Создаем заказ
-    const order = new Order();
-    order.order_id = order_id;
-    order.status = Status.Created;
-    order.createdAt = new Date();
-    order.user = user; // Устанавливаем пользователя для этого заказа
-
-    // Добавляем книги из корзины в orderBooks
-    let amount = 0;
-    order.orderBooks = user.cart.map((book) => {
-      amount += Number(book.price);
-      const orderBook = new OrderBook();
-      orderBook.order = order;
-      orderBook.book = book;
-      orderBook.orderedFormats = ''; // Пример формата, можно получить из данных
-      orderBook.transId = ''; // Идентификатор транзакции, уникальный для каждой книги. Creating by watermarking
-      orderBook.status = Status.Created;
-      return orderBook;
-    });
-
-    order.amount = amount;
-    params.amount = amount;
-
-    // Сохраняем заказ вместе с книгами
-    await this.orderRepository.save(order);
     try {
-      await this.cartWatermarking(order.order_id);
-
-      return this.generateSignature(params, order_id);
+      await this.cartWatermarking(order.order_id); // если надо, можешь тоже сделать универсальной
+      return this.generateSignature(params, orderId);
     } catch (e) {
-      throw new Error(e.message);
+      this.logsService.save({
+        source: 'Error by creating order in cart',
+        message: e,
+        code: 9001,
+      });
     }
   }
 

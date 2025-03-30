@@ -147,7 +147,7 @@ export class FilterBookDto {
 }
 
 export class deliverDTO {
-  transactionId: string;
+  orderId: string;
 }
 
 export class WatermarkDTO {

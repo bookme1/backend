@@ -1,31 +1,13 @@
-import { Expose, Type } from 'class-transformer';
-import { IsArray, IsNumber, IsString, ValidateNested } from 'class-validator';
-
-class OrderBookDTO {
-  @IsString()
-  reference_number: string;
-
-  @IsString()
-  ordered_formats: string;
-
-  @IsString()
-  transaction_id: string;
-}
+import { Expose } from 'class-transformer';
+import { IsArray } from 'class-validator';
 
 export class CreateOrderDTO {
-  @IsString()
-  @Expose()
-  order_id: string;
-
   @IsArray()
   @Expose()
-  @ValidateNested({ each: true })
-  @Type(() => OrderBookDTO)
-  orderBooks: OrderBookDTO[];
+  books: string[]; // ids
 
-  @IsNumber()
   @Expose()
-  amount: number;
+  order_id: string; // in order to make pay process instant -> generating order id on frontend
 }
 
 export enum Status {
