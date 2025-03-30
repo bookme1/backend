@@ -886,7 +886,12 @@ export class BooksService {
     };
 
     try {
-      await this.cartWatermarking(order.order_id); // если надо, можешь тоже сделать универсальной
+      await this.cartWatermarking(order.order_id);
+
+      // TODO: Replace it with func in user service
+      user.cart = [];
+      await this.userRepository.save(user);
+
       return this.generateSignature(params, orderId);
     } catch (e) {
       this.logsService.save({
