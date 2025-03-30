@@ -851,7 +851,7 @@ export class BooksService {
       currency: 'UAH',
       description: description + '      Ідентифікатор замовлення: ' + order_id,
       order_id: order_id,
-      sandbox: 1,
+      // sandbox: 1,
     };
 
     return this.generateSignature(params, order_id);
@@ -890,7 +890,7 @@ export class BooksService {
       currency: 'UAH',
       description,
       order_id: orderId,
-      sandbox: 1,
+      // sandbox: 1,
     };
 
     try {
@@ -984,7 +984,7 @@ export class BooksService {
         ) {
           order.status = Status.Error;
         } else if (
-          response.data.status == 'sandbox' ||
+          // response.data.status == 'sandbox' ||
           response.data.status == 'success'
         ) {
           order.status = Status.Payed;
