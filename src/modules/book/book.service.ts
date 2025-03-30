@@ -871,6 +871,10 @@ export class BooksService {
 
     const bookIds = user.cart.map((b) => b.id);
 
+    // TODO: Replace it with func in user service
+    user.cart = [];
+    await this.userRepository.save(user);
+
     const order = await this.orderService.createOrder(bookIds, orderId, userId);
 
     const description = `Оплата за книги в магазині Bookme, ФОП Науменко Михайло Вікторович. Ідентифікатор замовлення: ${orderId}`;
@@ -888,11 +892,9 @@ export class BooksService {
     try {
       await this.cartWatermarking(order.order_id);
 
-      // TODO: Replace it with func in user service
-      user.cart = [];
-      await this.userRepository.save(user);
+      const result = await this.generateSignature(params, orderId);
 
-      return this.generateSignature(params, orderId);
+      return result;
     } catch (e) {
       this.logsService.save({
         source: 'Error by creating order in cart',
