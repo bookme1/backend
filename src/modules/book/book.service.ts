@@ -25,6 +25,12 @@ import { readText, toArray } from './helper';
 import { LogsService } from '../log/log.service';
 import { BookExtractor } from './lib/onixExtractor';
 import { OrderService } from '../order/order.service';
+import { getConfig } from 'src/config';
+
+const config = getConfig();
+
+const elibri_public_key = config.ELIBRI_PUBLIC_KEY;
+const elibri_private_key = config.ELIBRI_PRIVATE_KEY;
 
 @Injectable()
 export class BooksService {
@@ -331,9 +337,8 @@ export class BooksService {
     const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
     // Generate HMAC for creating signature (sig)
-    const secret = '1b41d378b24738917d314dff5c816b61'; // Private key
     const hmac = createHmac('sha1', unixTimestamp);
-    const hmacDigest = hmac.update(secret).digest('base64');
+    const hmacDigest = hmac.update(elibri_private_key).digest('base64');
     const sig = encodeURIComponent(hmacDigest);
     const data = {
       record_reference: reference_number,
@@ -341,7 +346,7 @@ export class BooksService {
       visible_watermark: `Цю книгу купив користувач: user@domain.com (Замовлення № ${order_id}, b3258, 2024-07-06 21:55:25)`,
       stamp: unixTimestamp,
       sig: sig, // Динамический HMAC в виде подписи
-      token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+      token: elibri_public_key,
     };
 
     try {
@@ -405,9 +410,8 @@ export class BooksService {
       const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
       // HMAC generation for signature
-      const secret = '1b41d378b24738917d314dff5c816b61';
       const hmac = createHmac('sha1', unixTimestamp);
-      const hmacDigest = hmac.update(secret).digest('base64');
+      const hmacDigest = hmac.update(elibri_private_key).digest('base64');
       const sig = encodeURIComponent(hmacDigest);
 
       const data = {
@@ -416,7 +420,7 @@ export class BooksService {
         visible_watermark: `Цю книгу купив користувач: ${order.user.username} (Замовлення № ${order_id}, ${now.toISOString()})`,
         stamp: unixTimestamp,
         sig: sig,
-        token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+        token: elibri_public_key,
       };
 
       try {
@@ -505,16 +509,15 @@ export class BooksService {
       const now = new Date();
       const unixTimestamp = Math.floor(now.getTime() / 1000).toString();
 
-      const secret = '1b41d378b24738917d314dff5c816b61';
       const hmac = createHmac('sha1', unixTimestamp);
-      const hmacDigest = hmac.update(secret).digest('base64');
+      const hmacDigest = hmac.update(elibri_private_key).digest('base64');
       const sig = encodeURIComponent(hmacDigest);
 
       const data = {
         trans_id: orderBook.transId,
         stamp: unixTimestamp,
         sig: sig,
-        token: 'e_wa_97fd26f52e0505e68ec782ea_test',
+        token: elibri_public_key,
       };
 
       try {
@@ -822,13 +825,10 @@ export class BooksService {
     signature: string;
     order_id: string;
   } {
+    const liqpay_private_key = config.LIQPAY_PRIVATE_KEY;
     const data = Buffer.from(JSON.stringify(params)).toString('base64');
     const signature = createHash('sha1')
-      .update(
-        'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW' +
-          data +
-          'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW',
-      )
+      .update(liqpay_private_key + data + liqpay_private_key)
       .digest('base64');
     return { data, signature, order_id };
   }
@@ -841,8 +841,10 @@ export class BooksService {
     data: string;
     signature: string;
   } {
+    const liqpay_public_key = config.LIQPAY_PUBLIC_KEY;
+
     const params = {
-      public_key: 'sandbox_i70460379180',
+      public_key: liqpay_public_key,
       version: '3',
       action: 'pay',
       amount: amount,
@@ -877,9 +879,11 @@ export class BooksService {
 
     const order = await this.orderService.createOrder(bookIds, orderId, userId);
 
+    const liqpay_public_key = config.LIQPAY_PUBLIC_KEY;
+
     const description = `Оплата за книги в магазині Bookme, ФОП Науменко Михайло Вікторович. Ідентифікатор замовлення: ${orderId}`;
     const params = {
-      public_key: 'sandbox_i70460379180',
+      public_key: liqpay_public_key,
       version: '3',
       action: 'pay',
       amount: order.amount,
@@ -934,14 +938,14 @@ export class BooksService {
   }
 
   async checkPaymentStatus(order_id: string): Promise<any> {
-    const PUBLIC_KEY = 'sandbox_i70460379180'; // Ваш публичный ключ LiqPay
-    const PRIVATE_KEY = 'sandbox_tV0G1qXrCK21KUqkoPbVrdXt2Y42dmBO7uAn52SW'; // Ваш приватный ключ LiqPay
+    const liqpay_public_key = config.LIQPAY_PUBLIC_KEY;
+    const liqpay_private_key = config.LIQPAY_PRIVATE_KEY;
     const API_URL = 'https://www.liqpay.ua/api/request';
 
     const json = {
       action: 'status',
       version: 3,
-      public_key: PUBLIC_KEY,
+      public_key: liqpay_public_key,
       order_id: order_id,
     };
 
@@ -951,7 +955,7 @@ export class BooksService {
     const hash = createHash('sha1');
 
     const signature = hash
-      .update(PRIVATE_KEY + data + PRIVATE_KEY)
+      .update(liqpay_private_key + data + liqpay_private_key)
       .digest('base64');
 
     // Использование qs для создания строки запроса

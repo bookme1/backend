@@ -170,10 +170,31 @@ class ConfigDto {
   @IsString()
   @IsNotEmpty()
   REDIS_PASS!: string;
+
   @Expose()
   @IsString()
   @IsNotEmpty()
   REDIS_URI!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  LIQPAY_PUBLIC_KEY!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  LIQPAY_PRIVATE_KEY!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  ELIBRI_PUBLIC_KEY!: string;
+
+  @Expose()
+  @IsString()
+  @IsNotEmpty()
+  ELIBRI_PRIVATE_KEY!: string;
 }
 
 export const getConfig = (): ConfigDto => {
