@@ -149,7 +149,7 @@ export class AuthService {
     const payload = { id: user.id, username: user.username };
     const token = await this.jwtService.signAsync(payload, {
       secret: config.JWT_ACCESS_SECRET,
-      expiresIn: '15m',
+      expiresIn: '3h',
     });
 
     const link = `${process.env.CLIENT_DOMAIN}/reset-password/${user.id}/${token}`;

@@ -13,7 +13,7 @@ import { JwtModule } from '@nestjs/jwt';
     BooksModule,
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET,
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '3h' },
     }),
   ],
   providers: [UserService, AuthGuard],

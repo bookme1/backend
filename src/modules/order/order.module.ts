@@ -20,7 +20,7 @@ import { Log } from 'src/db/Log';
     LogsModule,
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET,
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '3h' },
     }),
   ],
   providers: [OrderService],

@@ -49,8 +49,12 @@ export class BooksService {
     private orderBookRepository: Repository<OrderBook>,
   ) {}
 
-  findAll(): Promise<Book[]> {
-    return this.booksRepository.find();
+  async findAll(isShort: boolean): Promise<Book[]> {
+    if (isShort)
+      return await this.booksRepository.find({
+        select: ['id', 'title', 'url', 'price'],
+      });
+    return await this.booksRepository.find();
   }
 
   async findBooksByIds(bookIds: string[]): Promise<Book[]> {

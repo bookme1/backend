@@ -13,7 +13,9 @@ import {
   UsePipes,
   ValidationPipe,
   Request,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BooksService } from './book.service';
 import {
@@ -30,6 +32,8 @@ import { Repository } from 'typeorm';
 import { OnixService } from '../onix/onix.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthGuard } from '../auth/strategies/accessToken.strategy';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
 
 @ApiTags('book')
 @Controller('api/book')
@@ -39,12 +43,47 @@ export class BooksController {
     private readonly onixService: OnixService,
     @InjectRepository(Book)
     private readonly bookRepository: Repository<Book>,
+    private readonly httpService: HttpService,
   ) {}
+
+  @Get('/download-from-url')
+  async downloadEpubFromExternalUrl(
+    @Query('url') url: string,
+    @Res() res: Response,
+  ) {
+    if (!url) {
+      throw new HttpException(
+        'Missing "url" parameter',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    try {
+      const response$ = this.httpService.get(url, {
+        responseType: 'stream',
+      });
+
+      const response = await lastValueFrom(response$);
+
+      res.set({
+        'Content-Disposition': 'attachment; filename="book.epub"',
+        'Content-Type': 'application/epub+zip',
+      });
+
+      response.data.pipe(res);
+    } catch (err) {
+      console.error('Error downloading file:', err.message);
+      throw new HttpException(
+        'Failed to download file',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   @UsePipes(new ValidationPipe({ transform: true }))
   @Get('')
-  public getAll() {
-    return this.bookService.findAll();
+  public getAll(@Query('isShort') isShort: boolean) {
+    return this.bookService.findAll(isShort);
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))

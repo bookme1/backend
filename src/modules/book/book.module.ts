@@ -21,7 +21,7 @@ import { OrderModule } from '../order/order.module';
     forwardRef(() => OrderModule),
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET,
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '3h' },
     }),
   ],
   providers: [BooksService, OnixService],
